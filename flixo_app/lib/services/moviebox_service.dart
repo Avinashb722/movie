@@ -37,7 +37,11 @@ class MovieBoxService {
 
   // We MUST use Android headers on both Android and Windows: Aoneroom servers block free desktop/web guest tokens,
   // but allow free mobile app guest tokens to fetch SD/HD streams.
-  static String get _userAgent => 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36';
+  static String get _userAgent => kIsWeb
+      ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      : (Platform.isAndroid
+          ? 'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'
+          : 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36');
   static String get _referer => 'https://www.movieboxpro.app/';
 
   // Generates or retrieves a persistent static device ID to prevent bot detection flags on the backend

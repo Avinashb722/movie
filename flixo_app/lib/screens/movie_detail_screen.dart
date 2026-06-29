@@ -379,77 +379,128 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── Row 1: Main Play Buttons (Play Direct & Other Links) ──────
-                  Row(
-                    children: [
-                      // Play Direct (2Embed) button
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.play_arrow_rounded,
-                          label: 'Play Direct',
-                          filled: true,
-                          onTap: _startDirect2EmbedFlow,
+                  // ── Action Buttons Section ─────────────────────────────────────
+                  if (defaultTargetPlatform == TargetPlatform.android) ...[
+                    // Android Layout: 2 Rows of 2 Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Icons.play_arrow_rounded,
+                            label: 'Play Direct',
+                            filled: true,
+                            onTap: _startDirect2EmbedFlow,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Other Links / All Servers button
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.alt_route_rounded,
-                          label: 'Other Links',
-                          filled: false,
-                          onTap: _startAlternativeServersFlow,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Icons.alt_route_rounded,
+                            label: 'Other Links',
+                            filled: false,
+                            onTap: _startAlternativeServersFlow,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // ── Row 2: Secondary Actions (My List & Download) ──────
-                  Row(
-                    children: [
-                      // My List
-                      Expanded(
-                        child: ValueListenableBuilder<List<Movie>>(
-                          valueListenable: WatchlistService.instance.watchlistNotifier,
-                          builder: (context, watchlist, _) {
-                            final inWatchlist = WatchlistService.instance.isInWatchlist(m.id);
-                            return _ActionButton(
-                              icon: inWatchlist ? Icons.check : Icons.add,
-                              label: inWatchlist ? 'Added' : 'My List',
-                              filled: inWatchlist,
-                              onTap: () async {
-                                await WatchlistService.instance.toggleWatchlist(m);
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      inWatchlist
-                                          ? 'Removed from Watchlist!'
-                                          : 'Added to Watchlist!',
-                                      style: const TextStyle(color: Colors.white),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ValueListenableBuilder<List<Movie>>(
+                            valueListenable: WatchlistService.instance.watchlistNotifier,
+                            builder: (context, watchlist, _) {
+                              final inWatchlist = WatchlistService.instance.isInWatchlist(m.id);
+                              return _ActionButton(
+                                icon: inWatchlist ? Icons.check : Icons.add,
+                                label: inWatchlist ? 'Added' : 'My List',
+                                filled: inWatchlist,
+                                onTap: () async {
+                                  await WatchlistService.instance.toggleWatchlist(m);
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        inWatchlist
+                                            ? 'Removed from Watchlist!'
+                                            : 'Added to Watchlist!',
+                                        style: const TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: AppColors.surface,
+                                      duration: const Duration(seconds: 2),
                                     ),
-                                    backgroundColor: AppColors.surface,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                            );
-                          },
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Download button
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.download_outlined,
-                          label: 'Download',
-                          filled: false,
-                          onTap: _startDownloadFlow,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Icons.download_outlined,
+                            label: 'Download',
+                            filled: false,
+                            onTap: _startDownloadFlow,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Desktop & Web Layout: 1 Row with Play, My List, Download
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: _ActionButton(
+                            icon: Icons.play_arrow,
+                            label: 'Play',
+                            filled: true,
+                            onTap: _startPlayFlow,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ValueListenableBuilder<List<Movie>>(
+                            valueListenable: WatchlistService.instance.watchlistNotifier,
+                            builder: (context, watchlist, _) {
+                              final inWatchlist = WatchlistService.instance.isInWatchlist(m.id);
+                              return _ActionButton(
+                                icon: inWatchlist ? Icons.check : Icons.add,
+                                label: inWatchlist ? 'Added' : 'My List',
+                                filled: inWatchlist,
+                                onTap: () async {
+                                  await WatchlistService.instance.toggleWatchlist(m);
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        inWatchlist
+                                            ? 'Removed from Watchlist!'
+                                            : 'Added to Watchlist!',
+                                        style: const TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: AppColors.surface,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Icons.download_outlined,
+                            label: 'Download',
+                            filled: false,
+                            onTap: _startDownloadFlow,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // ── Plot ──────────────────────────────────
