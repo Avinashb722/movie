@@ -18,7 +18,7 @@ import '../services/watchlist_service.dart';
 import '../services/history_service.dart';
 import '../theme/app_theme.dart';
 import 'player_screen.dart';
-import 'stream_screen.dart';
+import '../services/two_embed_service.dart';
 import '../widgets/web_iframe.dart';
 
 class MovieDetailScreen extends StatefulWidget {
@@ -379,17 +379,28 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── 3 Action Buttons ──────────────────────
+                  // ── Action Buttons Row (Play 2Embed Direct, Other Links, My List, Download) ──────
                   Row(
                     children: [
-                      // Play button (wide, yellow)
+                      // Play Direct (2Embed) button
                       Expanded(
                         flex: 2,
                         child: _ActionButton(
-                          icon: Icons.play_arrow,
-                          label: 'Play',
+                          icon: Icons.play_arrow_rounded,
+                          label: 'Play Direct',
                           filled: true,
-                          onTap: _startPlayFlow,
+                          onTap: _startDirect2EmbedFlow,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Other Links / All Servers button
+                      Expanded(
+                        flex: 2,
+                        child: _ActionButton(
+                          icon: Icons.alt_route_rounded,
+                          label: 'Other Links',
+                          filled: false,
+                          onTap: _startAlternativeServersFlow,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -421,16 +432,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               },
                             );
                           },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Download
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.download_outlined,
-                          label: 'Download',
-                          filled: false,
-                          onTap: _startDownloadFlow,
                         ),
                       ),
                     ],
@@ -559,7 +560,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -573,6 +573,69 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     text,
     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
   );
+
+  Future<void> _startDirect2EmbedFlow() async {
+    final m = _detail ?? widget.movie;
+    final imdb = _detail?.imdbId ?? '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          backgroundColor: AppColors.card,
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: AppColors.accent),
+              SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  'Loading 2Embed Direct Player...',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      final streamUrl = await TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString());
+      if (mounted) Navigator.pop(context);
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        HistoryService.instance.addToHistory(m);
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                movie: m,
+                directUrl: streamUrl,
+              ),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('2Embed stream unavailable. Trying all alternative servers...'),
+              backgroundColor: Colors.amber,
+            ),
+          );
+          _startAlternativeServersFlow();
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) _startAlternativeServersFlow();
+    }
+  }
+
+  Future<void> _startAlternativeServersFlow() async {
+    await _startPlayFlow();
+  }
 
   Future<void> _startPlayFlow() async {
     final m = _detail ?? widget.movie;
