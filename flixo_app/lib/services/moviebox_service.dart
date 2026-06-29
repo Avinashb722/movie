@@ -37,11 +37,7 @@ class MovieBoxService {
 
   // We MUST use Android headers on both Android and Windows: Aoneroom servers block free desktop/web guest tokens,
   // but allow free mobile app guest tokens to fetch SD/HD streams.
-  static String get _userAgent => kIsWeb
-      ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-      : (Platform.isAndroid
-          ? 'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'
-          : 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36');
+  static String get _userAgent => 'okhttp/4.10.0';
   static String get _referer => 'https://www.movieboxpro.app/';
 
   // Generates or retrieves a persistent static device ID to prevent bot detection flags on the backend
@@ -196,9 +192,9 @@ class MovieBoxService {
       final headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': _userAgent,
+        'User-Agent': 'MovieBox/3.1.2 (Android 13)',
         'Referer': _referer,
-        'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
+        'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId","os":"android","version":"3.1.2"}',
       };
 
       http.Response? response;
@@ -363,10 +359,20 @@ class MovieBoxService {
       } else {
         // In Guest Mode: Reuse token as long as it's not expired to prevent spamming Aoneroom
         // backend which triggers IP rate limits / shadowban.
-        if (_token != null && !_isTokenOld(_token!)) {
+        bool isWebToken = false;
+        if (_token != null) {
+          try {
+            final parts = _token!.split('.');
+            final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+            final payloadData = json.decode(payload);
+            if (payloadData['atp'] == 3) isWebToken = true;
+          } catch (_) {}
+        }
+
+        if (_token != null && !_isTokenOld(_token!) && (!Platform.isAndroid || !isWebToken)) {
           log('Using cached guest token: ${_token!.substring(0, 10)}...');
         } else {
-          log('Guest token missing or expired. Warming fresh guest token.');
+          log('Guest token missing, expired, or web-level on Android. Warming fresh guest token.');
           _token = null;
           await _warmToken(deviceId);
         }
@@ -386,70 +392,73 @@ class MovieBoxService {
         return [];
       }
 
-      // 1. Gather subjects with a single search query for the movie title to avoid rate limits (429)
-      log('Searching with query: "$title"');
+      // 1. Gather subjects across base title and language variations
+      final List<String> searchKeywords = [title, '$title Hindi', '$title Tamil', '$title Telugu'];
       final List<Map<String, dynamic>> matchingSubjects = [];
-      
-      try {
-        final searchUri = Uri.parse(_searchUrl);
-         final searchHeaders = {
-           'Accept': 'application/json',
-           'Content-Type': 'application/json',
-           'User-Agent': _userAgent,
-           'Referer': _referer,
-           'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
-           'Authorization': 'Bearer $_token',
-         };
-        
-        final searchPayload = {
-          'keyword': title,
-          'page': 1,
-          'perPage': 15,
-          'subjectType': 1,
-        };
+      final Set<String> addedSubjectIds = {};
 
-        // On native, always search directly so response IP matches download URL IP
-        http.Response response;
-        if (!kIsWeb) {
-          response = await http.post(searchUri, headers: searchHeaders, body: json.encode(searchPayload)).timeout(const Duration(seconds: 10));
-        } else {
-          response = await _sendPostWithFailover(searchUri, searchHeaders, json.encode(searchPayload));
-        }
+      for (final kw in searchKeywords) {
+        log('Searching with query: "$kw"');
+        try {
+          final searchUri = Uri.parse(_searchUrl);
+          final searchHeaders = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': _userAgent,
+            'Referer': _referer,
+            'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
+            'Authorization': 'Bearer $_token',
+          };
+          
+          final searchPayload = {
+            'keyword': kw,
+            'page': 1,
+            'perPage': 15,
+            'subjectType': 1,
+          };
 
-        log('Search Status Code: ${response.statusCode}');
-        if (response.statusCode == 200) {
-          final searchData = json.decode(response.body);
-          final items = (searchData['data'] != null ? searchData['data']['items'] : []) as List? ?? [];
-          log('Search items count: ${items.length}');
-          final queryNorm = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+          http.Response response;
+          if (!kIsWeb) {
+            response = await http.post(searchUri, headers: searchHeaders, body: json.encode(searchPayload)).timeout(const Duration(seconds: 10));
+          } else {
+            response = await _sendPostWithFailover(searchUri, searchHeaders, json.encode(searchPayload));
+          }
 
-          for (var item in items) {
-            if (item is Map) {
-              final itemTitle = item['title'] as String? ?? '';
-              final itemNorm = itemTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+          if (response.statusCode == 200) {
+            final searchData = json.decode(response.body);
+            final items = (searchData['data'] != null ? searchData['data']['items'] : []) as List? ?? [];
+            final queryNorm = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-              if (itemNorm.contains(queryNorm) || queryNorm.contains(itemNorm)) {
-                final Map<String, dynamic> subjMap = Map<String, dynamic>.from(item);
-                subjMap['_queryLanguage'] = '';
-                matchingSubjects.add(subjMap);
+            for (var item in items) {
+              if (item is Map) {
+                final subjectId = item['subjectId']?.toString();
+                if (subjectId != null && !addedSubjectIds.contains(subjectId)) {
+                  final itemTitle = item['title'] as String? ?? '';
+                  final itemNorm = itemTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+                  if (itemNorm.contains(queryNorm) || queryNorm.contains(itemNorm)) {
+                    addedSubjectIds.add(subjectId);
+                    final Map<String, dynamic> subjMap = Map<String, dynamic>.from(item);
+                    subjMap['_queryLanguage'] = kw.replaceAll(title, '').trim();
+                    matchingSubjects.add(subjMap);
+                  }
+                }
               }
             }
           }
-          log('Matching subjects count: ${matchingSubjects.length}');
-        } else {
-          log('Search error body: ${response.body}');
+        } catch (e) {
+          log('Search Exception for "$kw": $e');
         }
-      } catch (e) {
-        log('Search Exception: $e');
       }
+      log('Total unique matching subjects count: ${matchingSubjects.length}');
 
       if (matchingSubjects.isEmpty) {
         log('No matching subjects found for: $title');
         return [];
       }
 
-      // Resolve downloads for each unique subject concurrently (limit to 6 subjects to avoid spamming)
-      final resolveTasks = matchingSubjects.take(6).map((subj) async {
+      // Resolve downloads for each unique subject concurrently
+      final resolveTasks = matchingSubjects.take(12).map((subj) async {
         final subjectId = subj['subjectId']?.toString();
         final detailPath = subj['detailPath'] as String? ?? '';
         log('Resolving subjectId: $subjectId, detailPath: $detailPath');
@@ -530,17 +539,62 @@ class MovieBoxService {
                   url: url,
                   resolution: res,
                   size: '',
-                  language: finalLanguage,
+                  language: finalLanguage.isNotEmpty ? finalLanguage : (stream['lang'] ?? stream['language'] ?? 'English'),
                   referer: 'https://h5.aoneroom.com/movies/$detailPath',
                   subjectId: subjectId,
                   detailPath: detailPath,
                 ));
               }
-
-              // If we found any streams, no need to check lower resolutions
-              if (subjectStreams.isNotEmpty) break;
             } else {
               log('Subject $subjectId [${res}p] error: ${playResponse.body}');
+            }
+          }
+
+          // Fallback: If /play returned no streams, query /download endpoint for direct MP4 links
+          if (subjectStreams.isEmpty) {
+            log('Subject $subjectId: /play streams empty. Fetching /download fallback...');
+            final downloadUri = Uri.parse('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/download').replace(queryParameters: {
+              'subjectId': subjectId,
+              'se': '0',
+              'ep': '0',
+            });
+            final dlHeaders = {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': _userAgent,
+              'Referer': _referer,
+              'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
+              'Authorization': 'Bearer $_token',
+            };
+
+            http.Response dlResponse;
+            if (!kIsWeb) {
+              dlResponse = await http.get(downloadUri, headers: dlHeaders).timeout(const Duration(seconds: 10));
+            } else {
+              dlResponse = await _sendGetWithFailover(downloadUri, dlHeaders);
+            }
+
+            if (dlResponse.statusCode == 200) {
+              final dlData = json.decode(dlResponse.body);
+              final downloads = (dlData['data'] != null ? dlData['data']['downloads'] : []) as List? ?? [];
+              log('Subject $subjectId /download fallback returned ${downloads.length} items');
+              for (var item in downloads) {
+                if (item is Map) {
+                  final url = item['url'] as String? ?? '';
+                  final res = item['resolution'] as int? ?? 720;
+                  if (url.isNotEmpty) {
+                    subjectStreams.add(MovieBoxStream(
+                      url: url,
+                      resolution: res,
+                      size: '',
+                      language: finalLanguage,
+                      referer: 'https://h5.aoneroom.com/movies/$detailPath',
+                      subjectId: subjectId,
+                      detailPath: detailPath,
+                    ));
+                  }
+                }
+              }
             }
           }
           return subjectStreams;

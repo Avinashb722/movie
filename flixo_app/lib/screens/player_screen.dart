@@ -599,6 +599,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Range'] = 'bytes=0-';
+      } else if (cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie')) {
+        playHeaders['Referer'] = 'https://lookmovie2.skin/';
+        playHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+        playHeaders['Origin'] = 'https://lookmovie2.skin';
       } else if (cleanUrl.contains('archive.org')) {
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Android; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36';
       }

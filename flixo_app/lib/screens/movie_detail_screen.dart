@@ -748,10 +748,53 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           imdbId: imdb.isNotEmpty ? imdb : null,
         ),
         ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null),
+        TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString()),
       ]);
       torrents = results[0] as List<TorrentStream>;
       movieBoxStreams = results[1] as List<MovieBoxStream>;
       archives = results[2] as List<ArchiveStream>;
+      final twoEmbedStream = results[3] as String?;
+
+      if (twoEmbedStream != null && twoEmbedStream.isNotEmpty) {
+        final existingUrls = movieBoxStreams.map((s) => s.url).toSet();
+        final configs = twoEmbedStream.split('||');
+        for (final cfg in configs) {
+          if (cfg.trim().isEmpty) continue;
+          final parts = cfg.split('|');
+          final url = parts[0].trim();
+          if (url.isNotEmpty && !existingUrls.contains(url)) {
+            existingUrls.add(url);
+            String lang = 'Multi/English';
+            int resVal = 720;
+            for (int i = 1; i < parts.length; i++) {
+              final p = parts[i].trim();
+              if (p.startsWith('language=')) {
+                lang = p.substring(9);
+                if (lang.contains('(1080p)')) {
+                  resVal = 1080;
+                } else if (lang.contains('(720p)')) {
+                  resVal = 720;
+                } else if (lang.contains('(480p)')) {
+                  resVal = 480;
+                } else if (lang.contains('(360p)')) {
+                  resVal = 360;
+                }
+              } else if (p.startsWith('referer=')) {
+                // optional referer override
+              }
+            }
+            movieBoxStreams.add(MovieBoxStream(
+              url: url,
+              resolution: resVal,
+              size: 'Fast Stream',
+              language: lang,
+              referer: 'https://new.vidnest.fun/',
+              subjectId: '2embed',
+              detailPath: '',
+            ));
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[MovieDetailScreen] Stream resolution error: $e');
     }
@@ -845,6 +888,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 builder: (_) => PlayerScreen(
                                   movie: m,
                                   directUrl: url,
+                                  referer: s.referer,
+                                  resolution: s.resolution,
+                                  subjectId: s.subjectId,
+                                  detailPath: s.detailPath,
                                 ),
                               ),
                             );

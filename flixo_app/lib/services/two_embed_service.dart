@@ -45,21 +45,33 @@ class TwoEmbedService {
         );
       }
 
+      final List<String> combinedStreams = [];
+
       if (embedPageBody != null) {
-        // Try swish path first (Dhurandhar / LookMovie style)
+        // Try swish path (Dhurandhar / LookMovie style)
         final swishResult = await _resolveSwishPath(embedPageBody);
-        if (swishResult != null) return swishResult;
+        if (swishResult != null && swishResult.isNotEmpty) {
+          combinedStreams.add(swishResult);
+        }
 
         // Try vnest path (KGF / vidnest style)
         final vnestResult = await _resolveVnestPath(embedPageBody);
-        if (vnestResult != null) return vnestResult;
+        if (vnestResult != null && vnestResult.isNotEmpty) {
+          combinedStreams.add(vnestResult);
+        }
       }
 
-      // Direct fallback using TMDB ID if vnest didn't resolve or IMDb was empty (like for movie 29)
+      // Direct fallback or additional provider check using TMDB ID if provided
       if (tmdbId != null && tmdbId.isNotEmpty) {
-        _log('[TwoEmbedService] Trying direct vnest resolution using TMDB ID: $tmdbId');
+        _log('[TwoEmbedService] Querying vnest providers using TMDB ID: $tmdbId');
         final directVnest = await _queryVnestProviders(tmdbId);
-        if (directVnest != null) return directVnest;
+        if (directVnest != null && directVnest.isNotEmpty) {
+          combinedStreams.add(directVnest);
+        }
+      }
+
+      if (combinedStreams.isNotEmpty) {
+        return combinedStreams.join('||');
       }
 
       _log('[TwoEmbedService] No stream found via any path');
@@ -226,6 +238,25 @@ class TwoEmbedService {
             final res = s['resolution'] ?? '';
             final label = res.isNotEmpty ? '$lang ($res)' : lang.toString();
             parts.add('$appended|language=$label');
+          }
+        }
+      }
+    }
+
+    // Format 3: data.downloads (MovieBox / movies5f style)
+    final dataMap = data['data'];
+    if (dataMap is Map) {
+      final downloadsList = dataMap['downloads'];
+      if (downloadsList is List && downloadsList.isNotEmpty) {
+        for (final s in downloadsList) {
+          if (s is Map && s['url'] is String) {
+            final url = s['url'] as String;
+            if (_isValidStreamUrl(url)) {
+              final appended = _appendReferer(url, s['headers'] as Map?);
+              final res = s['resolution'];
+              final label = res != null ? 'Multi ($res)' : 'Multi';
+              parts.add('$appended|language=$label');
+            }
           }
         }
       }
