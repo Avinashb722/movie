@@ -379,77 +379,29 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── Action Buttons Row (Play 2Embed Direct, Other Links, My List, Download) ──────
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Play Direct (2Embed) button
-                        SizedBox(
-                          width: 140,
-                          child: _ActionButton(
-                            icon: Icons.play_arrow_rounded,
-                            label: 'Play Direct',
-                            filled: true,
-                            onTap: _startDirect2EmbedFlow,
-                          ),
+                  // ── 2 Main Action Buttons (Play Direct & Other Links) ──────
+                  Row(
+                    children: [
+                      // Play Direct (2Embed) button
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.play_arrow_rounded,
+                          label: 'Play Direct',
+                          filled: true,
+                          onTap: _startDirect2EmbedFlow,
                         ),
-                        const SizedBox(width: 8),
-                        // Other Links / All Servers button
-                        SizedBox(
-                          width: 140,
-                          child: _ActionButton(
-                            icon: Icons.alt_route_rounded,
-                            label: 'Other Links',
-                            filled: false,
-                            onTap: _startAlternativeServersFlow,
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Other Links / All Servers button
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.alt_route_rounded,
+                          label: 'Other Links',
+                          filled: false,
+                          onTap: _startAlternativeServersFlow,
                         ),
-                        const SizedBox(width: 8),
-                        // My List
-                        SizedBox(
-                          width: 120,
-                          child: ValueListenableBuilder<List<Movie>>(
-                            valueListenable: WatchlistService.instance.watchlistNotifier,
-                            builder: (context, watchlist, _) {
-                              final inWatchlist = WatchlistService.instance.isInWatchlist(m.id);
-                              return _ActionButton(
-                                icon: inWatchlist ? Icons.check : Icons.add,
-                                label: inWatchlist ? 'Added' : 'My List',
-                                filled: inWatchlist,
-                                onTap: () async {
-                                  await WatchlistService.instance.toggleWatchlist(m);
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        inWatchlist
-                                            ? 'Removed from Watchlist!'
-                                            : 'Added to Watchlist!',
-                                        style: const TextStyle(color: Colors.white),
-                                      ),
-                                      backgroundColor: AppColors.surface,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Download button
-                        SizedBox(
-                          width: 130,
-                          child: _ActionButton(
-                            icon: Icons.download_outlined,
-                            label: 'Download',
-                            filled: false,
-                            onTap: _startDownloadFlow,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
