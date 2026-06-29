@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Watch unlimited movies, TV shows, and live channels.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="FLIXO">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>FLIXO - Stream Movies & Live TV</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      background-color: #0c0c0d;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #ffffff;
+    }
+    
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .flixo-logo {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      color: #ffffff;
+      animation: pulse 1.8s infinite ease-in-out;
+    }
+
+    .flixo-logo span {
+      color: #ffc107; /* AppColors.accent */
+      text-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      border-top-color: #ffc107;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: scale(0.98); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-container" id="loading-indicator">
+    <div class="flixo-logo">FLIXO<span>.</span></div>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    window.flutterWebRenderer = "html";
+    {{flutter_bootstrap_js}}
+  </script>
+</body>
+</html>

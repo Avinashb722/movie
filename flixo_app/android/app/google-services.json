@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "82684853945",
+    "project_id": "movie-de00a",
+    "storage_bucket": "movie-de00a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:82684853945:android:e1d47fc1bbee1278602568",
+        "android_client_info": {
+          "package_name": "com.flixo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "82684853945-sm7f55dm70vao96aqe7j9mr4dv4osdkf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.flixo.app",
+            "certificate_hash": "6a15432c6bc68b5d560e5e3dd82920df324dd181"
+          }
+        },
+        {
+          "client_id": "82684853945-cgefiga1b5tl2cuioauuma4g3tdsccr7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZZFzuC8dpTKYj-M7lQaU3T-W1rv8UOxQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "82684853945-cgefiga1b5tl2cuioauuma4g3tdsccr7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

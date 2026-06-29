@@ -1,0 +1,53 @@
+name: flixo_app
+description: FLIXO - Stream Movies & Shows
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  cached_network_image: ^3.4.1
+  webview_flutter: ^4.7.0
+  shimmer: ^3.0.0
+  carousel_slider: ^5.0.0
+  smooth_page_indicator: ^1.2.0
+  google_fonts: ^6.2.1
+  better_player_plus: ^1.3.4
+  video_player: ^2.9.1
+  chewie: ^1.8.5
+  dio: ^5.4.3+1
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.1
+  url_launcher: ^6.3.1
+  crypto: ^3.0.7
+  youtube_explode_dart: ^2.2.2
+  flutter_local_notifications: ^17.1.2
+  shared_preferences: ^2.5.5
+  firebase_core: ^3.1.1
+  firebase_auth: ^5.1.1
+  google_sign_in: ^6.2.1
+  video_player_win: ^3.2.2
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+# Pin path_provider_android to last version before jni was introduced.
+# jni:1.0.0 applies the old kotlin-android plugin which breaks AGP 9+.
+dependency_overrides:
+  path_provider_android: 2.2.12
+  video_player_android:
+    path: ./video_player_android
+
+flutter:
+  uses-material-design: true
+

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HLS Player Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { background: #111; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
+        video { width: 80%; max-width: 800px; border: 2px solid #333; background: #000; }
+        button { padding: 10px 20px; font-size: 16px; margin: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>HLS Direct Play Test</h1>
+    <button onclick="resolveAndPlay()">Resolve and Play</button>
+    <br>
+    <video id="video" controls></video>
+    <p id="status"></p>
+
+    <script>
+        async function resolveAndPlay() {
+            const status = document.getElementById('status');
+            status.innerText = 'Resolving stream...';
+            try {
+                const res = await fetch('http://localhost:3009/resolve-2embed?imdbId=tt33988385');
+                const data = await res.json();
+                if (!data.url) {
+                    status.innerText = 'Failed to resolve URL: ' + JSON.stringify(data);
+                    return;
+                }
+                
+                status.innerText = 'Playing: ' + data.url;
+                const video = document.getElementById('video');
+                
+                if (Hls.isSupported()) {
+                    const hls = new Hls({
+                        xhrSetup: function(xhr, url) {
+                            // Note: Browsers will not let us set Referer or User-Agent here due to security,
+                            // but they automatically send the current page URL as Referer!
+                        }
+                    });
+                    hls.loadSource(data.url);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        video.play();
+                    });
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        console.error('HLS error:', data);
+                        status.innerText = 'HLS Error: ' + data.details + ' | Type: ' + data.type;
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = data.url;
+                    video.addEventListener('loadedmetadata', function() {
+                        video.play();
+                    });
+                } else {
+                    status.innerText = 'HLS is not supported in this browser.';
+                }
+            } catch (e) {
+                status.innerText = 'Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
