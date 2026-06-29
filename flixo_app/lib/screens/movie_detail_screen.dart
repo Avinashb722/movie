@@ -434,6 +434,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           },
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Download button
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.download_outlined,
+                          label: 'Download',
+                          filled: false,
+                          onTap: _startDownloadFlow,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
