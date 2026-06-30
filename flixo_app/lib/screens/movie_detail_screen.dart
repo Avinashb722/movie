@@ -1129,6 +1129,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             '$titleLine (${t.size})',
                             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
+                          trailing: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 18),
                           onTap: () {
                             Navigator.pop(context);
                             final bool isMobile = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
