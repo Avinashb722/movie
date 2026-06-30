@@ -62,6 +62,8 @@ class MovieBoxService {
   // and proxy first on web to bypass CORS.
   static Future<http.Response> _sendPostWithFailover(Uri uri, Map<String, String> headers, String body) async {
     final bool isApiRequest = uri.toString().contains('/subject/');
+    final bool isMovieBoxStream = (uri.host.contains('aoneroom.com') || uri.host.contains('hakunaymatata.com')) &&
+                                  !uri.host.contains('h5-api.aoneroom.com');
 
     // 1. On Web: CORS requires us to route API/metadata requests through the local proxy
     if (kIsWeb && isApiRequest) {
@@ -93,9 +95,9 @@ class MovieBoxService {
       debugPrint('[MovieBox] Direct POST failed: $e. Trying Vercel proxy...');
     }
 
-    // 3. Fallback: Vercel proxy (ONLY for non-API/stream URLs to prevent 429/403 blocks)
-    if (isApiRequest) {
-      throw Exception('API metadata request failed direct and local proxy. Bypassing public proxies.');
+    // 3. Fallback: Vercel proxy (only for non-stream URLs to prevent blocks)
+    if (isMovieBoxStream) {
+      throw Exception('POST request failed direct. Bypassing public proxies for media streams.');
     }
 
     try {
@@ -116,7 +118,8 @@ class MovieBoxService {
   // and proxy first on web to bypass CORS.
   static Future<http.Response> _sendGetWithFailover(Uri uri, Map<String, String> headers) async {
     // 1. On Web: CORS requires us to try proxies first
-    final bool isMovieBox = uri.host.contains('aoneroom.com') || uri.host.contains('hakunaymatata.com');
+    final bool isMovieBoxStream = (uri.host.contains('aoneroom.com') || uri.host.contains('hakunaymatata.com')) &&
+                                  !uri.host.contains('h5-api.aoneroom.com');
     final bool isArchive = uri.host.contains('archive.org');
 
     if (kIsWeb) {
@@ -132,7 +135,7 @@ class MovieBoxService {
         } catch (e) {
           debugPrint('[MovieBox] Web CF proxy GET failed for Archive: $e');
         }
-      } else if (isMovieBox) {
+      } else if (!isMovieBoxStream) {
         // Always route MovieBox API requests through corsproxy.io
         try {
           final localProxyUri = Uri.parse('https://corsproxy.io/?url=${Uri.encodeComponent(uri.toString())}');
@@ -164,7 +167,7 @@ class MovieBoxService {
     }
 
     // 3. Fallback: Vercel proxy (only for non-aoneroom/non-archive streams to prevent blocks)
-    if (isMovieBox || isArchive) {
+    if (isMovieBoxStream || isArchive) {
       throw Exception('GET request failed direct and proxy. Bypassing public proxies.');
     }
 
@@ -209,13 +212,9 @@ class MovieBoxService {
         }
       }
 
-      // Fall back to Dart HTTP (always used on Android/iOS, fallback on Windows)
+      // Fall back to Dart HTTP with Vercel proxy failover
       if (response == null) {
-        if (!kIsWeb) {
-          response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 10));
-        } else {
-          response = await _sendPostWithFailover(uri, headers, body);
-        }
+        response = await _sendPostWithFailover(uri, headers, body);
       }
           
       if (response.statusCode == 200) {
@@ -417,12 +416,7 @@ class MovieBoxService {
             'subjectType': 1,
           };
 
-          http.Response response;
-          if (!kIsWeb) {
-            response = await http.post(searchUri, headers: searchHeaders, body: json.encode(searchPayload)).timeout(const Duration(seconds: 10));
-          } else {
-            response = await _sendPostWithFailover(searchUri, searchHeaders, json.encode(searchPayload));
-          }
+          http.Response response = await _sendPostWithFailover(searchUri, searchHeaders, json.encode(searchPayload));
 
           if (response.statusCode == 200) {
             final searchData = json.decode(response.body);
@@ -511,13 +505,7 @@ class MovieBoxService {
               'Cache-Control': 'no-cache, no-store, must-revalidate',
             };
 
-            // On native, always direct to match IP signature
-            http.Response playResponse;
-            if (!kIsWeb) {
-              playResponse = await http.get(playUri, headers: playHeaders).timeout(const Duration(seconds: 10));
-            } else {
-              playResponse = await _sendGetWithFailover(playUri, playHeaders);
-            }
+            http.Response playResponse = await _sendGetWithFailover(playUri, playHeaders);
 
             log('Subject $subjectId [${res}p] HTTP Response Status: ${playResponse.statusCode}');
             if (playResponse.statusCode == 200) {
@@ -567,12 +555,7 @@ class MovieBoxService {
               'Authorization': 'Bearer $_token',
             };
 
-            http.Response dlResponse;
-            if (!kIsWeb) {
-              dlResponse = await http.get(downloadUri, headers: dlHeaders).timeout(const Duration(seconds: 10));
-            } else {
-              dlResponse = await _sendGetWithFailover(downloadUri, dlHeaders);
-            }
+            http.Response dlResponse = await _sendGetWithFailover(downloadUri, dlHeaders);
 
             if (dlResponse.statusCode == 200) {
               final dlData = json.decode(dlResponse.body);
@@ -666,12 +649,7 @@ class MovieBoxService {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       };
       
-       http.Response resp;
-       if (!kIsWeb) {
-         resp = await http.get(playUri, headers: headers).timeout(const Duration(seconds: 10));
-       } else {
-         resp = await _sendGetWithFailover(playUri, headers);
-       }
+       http.Response resp = await _sendGetWithFailover(playUri, headers);
       
       debugPrint('[MovieBox] refreshUrl API status: ${resp.statusCode}');
       if (resp.statusCode == 200) {

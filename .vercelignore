@@ -1,0 +1,11 @@
+*.db
+*.session
+*.db-journal
+*.db-shm
+*.db-wal
+flixo_app/
+.git/
+.github/
+.idea/
+.vscode/
+node_modules/
