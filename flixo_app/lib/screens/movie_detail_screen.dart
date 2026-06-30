@@ -42,6 +42,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   bool _loadingTrailer = false;
 
 
+  // Cache variables for fetched streams to speed up "Other Links" bottom sheet
+  List<TorrentStream>? _cachedTorrents;
+  List<MovieBoxStream>? _cachedMovieBoxStreams;
+  List<ArchiveStream>? _cachedArchives;
+  List<MovieBoxStream>? _cachedTwoEmbedStreams;
+  DateTime? _cacheTime;
+
   @override
   void initState() {
     super.initState();
@@ -729,133 +736,153 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     debugPrint('[MovieDetail] Starting play flow (isDownload=$isDownloadFlow) for: $title (IMDB: $imdb)');
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const AlertDialog(
-          backgroundColor: AppColors.card,
-          content: Row(
-            children: [
-              CircularProgressIndicator(color: AppColors.accent),
-              SizedBox(width: 20),
-              Expanded(
-                child: Text(
-                  'Searching streaming sources...',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
     List<TorrentStream> torrents = [];
     List<MovieBoxStream> movieBoxStreams = [];
     List<ArchiveStream> archives = [];
     List<MovieBoxStream> twoEmbedStreams = [];
 
-    try {
-      // Run all stream resolution concurrently
-      final results = await Future.wait([
-        imdb.startsWith('tt')
-            ? TorrentioService.getStreams(imdb)
-            : Future.value(<TorrentStream>[]),
-        MovieBoxService.resolveStreams(
-          title,
-          tmdbId: m.id,
-          imdbId: imdb.isNotEmpty ? imdb : null,
-        ),
-        ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null),
-        TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString()),
-      ]);
-      torrents = results[0] as List<TorrentStream>;
-      movieBoxStreams = results[1] as List<MovieBoxStream>;
-      archives = results[2] as List<ArchiveStream>;
-      final twoEmbedStream = results[3] as String?;
+    final bool hasValidCache = _cachedTorrents != null &&
+        _cacheTime != null &&
+        DateTime.now().difference(_cacheTime!) < const Duration(minutes: 10);
 
-      if (twoEmbedStream != null && twoEmbedStream.isNotEmpty) {
-        final configs = twoEmbedStream.split('||');
-        for (final cfg in configs) {
-          if (cfg.trim().isEmpty) continue;
-          final parts = cfg.split('|');
-          final url = parts[0].trim();
-          if (url.isNotEmpty) {
-            String lang = 'Multi/English';
-            int resVal = 720;
-            String parsedReferer = 'https://lookmovie2.skin/';
-            for (int i = 1; i < parts.length; i++) {
-              final p = parts[i].trim();
-              if (p.startsWith('language=')) {
-                lang = p.substring(9);
-                if (lang.contains('(1080p)')) {
-                  resVal = 1080;
-                } else if (lang.contains('(720p)')) {
-                  resVal = 720;
-                } else if (lang.contains('(480p)')) {
-                  resVal = 480;
-                } else if (lang.contains('(360p)')) {
-                  resVal = 360;
+    if (hasValidCache) {
+      torrents = _cachedTorrents!;
+      movieBoxStreams = _cachedMovieBoxStreams!;
+      archives = _cachedArchives!;
+      twoEmbedStreams = _cachedTwoEmbedStreams!;
+      debugPrint('[MovieDetail] Using cached streams (age: ${DateTime.now().difference(_cacheTime!)}).');
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            backgroundColor: AppColors.card,
+            content: Row(
+              children: [
+                CircularProgressIndicator(color: AppColors.accent),
+                SizedBox(width: 20),
+                Expanded(
+                  child: Text(
+                    'Searching streaming sources...',
+                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      try {
+        // Run all stream resolution concurrently
+        final results = await Future.wait([
+          imdb.startsWith('tt')
+              ? TorrentioService.getStreams(imdb)
+              : Future.value(<TorrentStream>[]),
+          MovieBoxService.resolveStreams(
+            title,
+            tmdbId: m.id,
+            imdbId: imdb.isNotEmpty ? imdb : null,
+          ),
+          ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null),
+          TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString()),
+        ]);
+        torrents = results[0] as List<TorrentStream>;
+        movieBoxStreams = results[1] as List<MovieBoxStream>;
+        archives = results[2] as List<ArchiveStream>;
+        final twoEmbedStream = results[3] as String?;
+
+        if (twoEmbedStream != null && twoEmbedStream.isNotEmpty) {
+          final configs = twoEmbedStream.split('||');
+          for (final cfg in configs) {
+            if (cfg.trim().isEmpty) continue;
+            final parts = cfg.split('|');
+            final url = parts[0].trim();
+            if (url.isNotEmpty) {
+              String lang = 'Multi/English';
+              int resVal = 720;
+              String parsedReferer = 'https://lookmovie2.skin/';
+              for (int i = 1; i < parts.length; i++) {
+                final p = parts[i].trim();
+                if (p.startsWith('language=')) {
+                  lang = p.substring(9);
+                  if (lang.contains('(1080p)')) {
+                    resVal = 1080;
+                  } else if (lang.contains('(720p)')) {
+                    resVal = 720;
+                  } else if (lang.contains('(480p)')) {
+                    resVal = 480;
+                  } else if (lang.contains('(360p)')) {
+                    resVal = 360;
+                  }
+                } else if (p.startsWith('referer=')) {
+                  parsedReferer = p.substring(8);
                 }
-              } else if (p.startsWith('referer=')) {
-                parsedReferer = p.substring(8);
               }
-            }
 
-            final Map<String, String> languageNames = {
-              'hi': 'Hindi',
-              'kn': 'Kannada',
-              'te': 'Telugu',
-              'ta': 'Tamil',
-              'ml': 'Malayalam',
-              'bn': 'Bengali',
-              'pa': 'Punjabi',
-              'mr': 'Marathi',
-              'gu': 'Gujarati',
-            };
-            final String origLangCode = m.language.toLowerCase();
-            final String actualOrigLang = languageNames[origLangCode] ?? m.language;
+              final Map<String, String> languageNames = {
+                'hi': 'Hindi',
+                'kn': 'Kannada',
+                'te': 'Telugu',
+                'ta': 'Tamil',
+                'ml': 'Malayalam',
+                'bn': 'Bengali',
+                'pa': 'Punjabi',
+                'mr': 'Marathi',
+                'gu': 'Gujarati',
+              };
+              final String origLangCode = m.language.toLowerCase();
+              final String actualOrigLang = languageNames[origLangCode] ?? m.language;
 
-            final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
-            
-            // Correct incorrect provider labeling (e.g. labeling Tamil as English)
-            if (lang.startsWith('English') && origLangCode != 'en' && isMb) {
-              lang = lang.replaceFirst('English', actualOrigLang);
-            }
-            // Strip duplicate resolution suffixes like (360p) from language label
-            lang = lang.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
+              final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
+              
+              // Correct incorrect provider labeling (e.g. labeling Tamil as English)
+              if (lang.startsWith('English') && origLangCode != 'en' && isMb) {
+                lang = lang.replaceFirst('English', actualOrigLang);
+              }
+              // Strip duplicate resolution suffixes like (360p) from language label
+              lang = lang.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
 
-            if (isMb) {
-              movieBoxStreams.add(MovieBoxStream(
-                url: url,
-                resolution: resVal,
-                size: 'Direct Stream',
-                language: lang,
-                referer: 'https://h5.aoneroom.com/',
-                subjectId: '2embed', // Marks it for proper proxy headers
-                detailPath: '',
-              ));
-            } else {
-              twoEmbedStreams.add(MovieBoxStream(
-                url: url,
-                resolution: resVal,
-                size: 'Fast Stream',
-                language: lang,
-                referer: parsedReferer,
-                subjectId: '2embed',
-                detailPath: '',
-              ));
+              if (isMb) {
+                movieBoxStreams.add(MovieBoxStream(
+                  url: url,
+                  resolution: resVal,
+                  size: 'Direct Stream',
+                  language: lang,
+                  referer: 'https://h5.aoneroom.com/',
+                  subjectId: '2embed', // Marks it for proper proxy headers
+                  detailPath: '',
+                ));
+              } else {
+                twoEmbedStreams.add(MovieBoxStream(
+                  url: url,
+                  resolution: resVal,
+                  size: 'Fast Stream',
+                  language: lang,
+                  referer: parsedReferer,
+                  subjectId: '2embed',
+                  detailPath: '',
+                ));
+              }
             }
           }
         }
+
+        // Cache the parsed streams
+        _cachedTorrents = torrents;
+        _cachedMovieBoxStreams = movieBoxStreams;
+        _cachedArchives = archives;
+        _cachedTwoEmbedStreams = twoEmbedStreams;
+        _cacheTime = DateTime.now();
+      } catch (e) {
+        debugPrint('[MovieDetailScreen] Stream resolution error: $e');
+      } finally {
+        if (mounted) Navigator.pop(context); // Dismiss loading dialog
       }
-    } catch (e) {
-      debugPrint('[MovieDetailScreen] Stream resolution error: $e');
     }
 
     if (!mounted) return;
-    Navigator.pop(context); // Dismiss loading dialog
 
     debugPrint('[MovieDetail] Found: ${twoEmbedStreams.length} 2Embed, ${movieBoxStreams.length} MovieBox, ${archives.length} Archive, ${torrents.length} Torrent streams');
 
