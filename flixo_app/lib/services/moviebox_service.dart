@@ -64,6 +64,21 @@ class MovieBoxService {
     final bool isApiRequest = uri.toString().contains('/subject/');
     final bool isMovieBoxStream = (uri.host.contains('aoneroom.com') || uri.host.contains('hakunaymatata.com')) &&
                                   !uri.host.contains('h5-api.aoneroom.com');
+    final bool isMovieBoxApi = uri.host.contains('h5-api.aoneroom.com');
+    final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
+    // Mobile: bypass direct Dart HTTP to avoid TLS fingerprint blocks (atp=3 web token/0 streams shadowban)
+    if (isMovieBoxApi && isMobile) {
+      try {
+        final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
+        final resp = await http.post(unblockUri, headers: headers, body: body).timeout(const Duration(seconds: 10));
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          return resp;
+        }
+      } catch (e) {
+        debugPrint('[MovieBox] Mobile Vercel Proxy POST failed: $e');
+      }
+    }
 
     // 1. On Web: CORS requires us to route API/metadata requests through the local proxy
     if (kIsWeb && isApiRequest) {
@@ -120,7 +135,22 @@ class MovieBoxService {
     // 1. On Web: CORS requires us to try proxies first
     final bool isMovieBoxStream = (uri.host.contains('aoneroom.com') || uri.host.contains('hakunaymatata.com')) &&
                                   !uri.host.contains('h5-api.aoneroom.com');
+    final bool isMovieBoxApi = uri.host.contains('h5-api.aoneroom.com');
     final bool isArchive = uri.host.contains('archive.org');
+    final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
+    // Mobile: bypass direct Dart HTTP to avoid TLS fingerprint blocks (atp=3 web token/0 streams shadowban)
+    if (isMovieBoxApi && isMobile) {
+      try {
+        final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
+        final resp = await http.get(unblockUri, headers: headers).timeout(const Duration(seconds: 10));
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          return resp;
+        }
+      } catch (e) {
+        debugPrint('[MovieBox] Mobile Vercel Proxy GET failed: $e');
+      }
+    }
 
     if (kIsWeb) {
       if (isArchive) {
