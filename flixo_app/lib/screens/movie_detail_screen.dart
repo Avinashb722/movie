@@ -802,7 +802,30 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 parsedReferer = p.substring(8);
               }
             }
+
+            final Map<String, String> languageNames = {
+              'hi': 'Hindi',
+              'kn': 'Kannada',
+              'te': 'Telugu',
+              'ta': 'Tamil',
+              'ml': 'Malayalam',
+              'bn': 'Bengali',
+              'pa': 'Punjabi',
+              'mr': 'Marathi',
+              'gu': 'Gujarati',
+            };
+            final String origLangCode = m.language.toLowerCase();
+            final String actualOrigLang = languageNames[origLangCode] ?? m.language;
+
             final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
+            
+            // Correct incorrect provider labeling (e.g. labeling Tamil as English)
+            if (lang.startsWith('English') && origLangCode != 'en' && isMb) {
+              lang = lang.replaceFirst('English', actualOrigLang);
+            }
+            // Strip duplicate resolution suffixes like (360p) from language label
+            lang = lang.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
+
             if (isMb) {
               movieBoxStreams.add(MovieBoxStream(
                 url: url,

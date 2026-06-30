@@ -138,6 +138,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             (urlPart.contains('hakunaymatata.com') || urlPart.contains('aoneroom.com'))) {
           language = language.replaceFirst('English', actualOrigLang);
         }
+        // Strip duplicate resolution suffixes like (360p) from language display
+        language = language.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
 
         String sanitizedUrl = urlPart;
         if (sanitizedUrl.contains('|language=')) {
