@@ -802,15 +802,28 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 parsedReferer = p.substring(8);
               }
             }
-            twoEmbedStreams.add(MovieBoxStream(
-              url: url,
-              resolution: resVal,
-              size: 'Fast Stream',
-              language: lang,
-              referer: parsedReferer,
-              subjectId: '2embed',
-              detailPath: '',
-            ));
+            final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
+            if (isMb) {
+              movieBoxStreams.add(MovieBoxStream(
+                url: url,
+                resolution: resVal,
+                size: 'Direct Stream',
+                language: lang,
+                referer: 'https://h5.aoneroom.com/',
+                subjectId: '2embed', // Marks it for proper proxy headers
+                detailPath: '',
+              ));
+            } else {
+              twoEmbedStreams.add(MovieBoxStream(
+                url: url,
+                resolution: resVal,
+                size: 'Fast Stream',
+                language: lang,
+                referer: parsedReferer,
+                subjectId: '2embed',
+                detailPath: '',
+              ));
+            }
           }
         }
       }
