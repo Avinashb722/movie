@@ -214,19 +214,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return;
         }
 
-        // Mobile (Android/iOS): use StreamScreen with native P2P engine
-        debugPrint('[PlayerScreen] Redirecting to P2P StreamScreen');
+        // Mobile (Android/iOS): copy to clipboard and pop back
+        Clipboard.setData(ClipboardData(text: url));
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => StreamScreen(
-                magnetLink: url,
-                title: widget.movie.title,
-              ),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Magnet link copied! Paste it in external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent) to stream or download.'),
+              duration: Duration(seconds: 5),
+              backgroundColor: AppColors.surface,
             ),
           );
+          Navigator.pop(context);
         });
         return;
       }
@@ -2517,9 +2516,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             await Clipboard.setData(ClipboardData(text: t.magnetUri));
                             messenger.showSnackBar(
                               const SnackBar(
-                                content: Text('Magnet link copied to clipboard!'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 3),
+                                content: Text('Magnet link copied! Paste it in external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent) to stream or download.'),
+                                backgroundColor: AppColors.surface,
+                                duration: Duration(seconds: 5),
                               ),
                             );
                           },
@@ -2529,7 +2528,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                           child: Text(
-                            '💡 To play or download: Copy link and paste it into WebTorrent, qBittorrent, or VLC Player.',
+                            '💡 To play or download: Copy link and paste it into external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent).',
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontStyle: FontStyle.italic),
                           ),
                         ),

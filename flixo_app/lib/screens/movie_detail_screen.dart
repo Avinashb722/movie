@@ -22,6 +22,7 @@ import '../services/two_embed_service.dart';
 import '../widgets/web_iframe.dart';
 import 'downloads_screen.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final Movie movie;
@@ -1130,6 +1131,18 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           ),
                           onTap: () {
                             Navigator.pop(context);
+                            final bool isMobile = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
+                            if (isMobile) {
+                              Clipboard.setData(ClipboardData(text: t.magnetUri));
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Magnet link copied! Paste it in external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent) to stream or download.'),
+                                  duration: Duration(seconds: 5),
+                                  backgroundColor: AppColors.surface,
+                                ),
+                              );
+                              return;
+                            }
                             if (isDownloadFlow) {
                               if (t.magnetUri.isEmpty) {
                                 ScaffoldMessenger.of(this.context).showSnackBar(
