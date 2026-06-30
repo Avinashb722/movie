@@ -474,6 +474,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
       }
     }
+    
+    // Strip language metadata if it exists directly on the target URL
+    if (cleanUrl.contains('|language=')) {
+      cleanUrl = cleanUrl.split('|language=')[0];
+    }
 
     String playUrl = cleanUrl;
     final Map<String, String> playHeaders = {};
@@ -588,9 +593,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       // Set headers for direct playback
-      final bool isMovieBoxUrl = cleanUrl.contains('hakunaymatata.com') ||
+      final bool isMovieBoxUrl = (cleanUrl.contains('hakunaymatata.com') ||
           cleanUrl.contains('aoneroom.com') ||
-          widget.referer != null;
+          widget.referer != null) && !cleanUrl.contains('korso420dim.com') && !cleanUrl.contains('cdn30092');
       if (isMovieBoxUrl) {
         playHeaders['Referer'] = 'https://www.movieboxpro.app/';
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36';
@@ -599,10 +604,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Range'] = 'bytes=0-';
-      } else if (cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie')) {
-        playHeaders['Referer'] = 'https://lookmovie2.skin/';
+      } else if (cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('cdn30091') || cleanUrl.contains('cdn30092')) {
+        playHeaders['Referer'] = cleanReferer ?? 'https://lookmovie2.skin/';
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
         playHeaders['Origin'] = 'https://lookmovie2.skin';
+        playHeaders['Accept'] = '*/*';
+        playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
+        playHeaders['Connection'] = 'keep-alive';
       } else if (cleanUrl.contains('archive.org')) {
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Android; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36';
       }
@@ -655,7 +663,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         } else {
           final bool isProxyUrl = url.contains('ver-orcin-alpha.vercel.app') || (hasCfProxy && url.startsWith(cfProxyUrl));
           if (!isProxyUrl) {
-            debugPrint('[PlayerScreen] Native - Attempting Direct Play: $playUrl');
+            final bool isLookMovieOrKorso = cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('cdn30091') || cleanUrl.contains('cdn30092') || cleanUrl.contains('tiktokcdn.com');
+            if (isLookMovieOrKorso) {
+              final proxyPort = LocalStreamingProxy.instance.port;
+              final ref = cleanReferer ?? 'https://lookmovie2.skin/';
+              playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
+              debugPrint('[PlayerScreen] Native Android - Routing stream through LocalStreamingProxy localhost port: $playUrl');
+            } else {
+              playUrl = cleanUrl;
+              debugPrint('[PlayerScreen] Native Android - Playing stream directly: $playUrl');
+            }
           } else {
             playUrl = url;
             // Keep headers even for proxy — Vercel proxy forwards them
@@ -745,10 +762,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       final String originalUrl = _getOriginalUrl(url);
-      
-      // Layered failover for MovieBox/Aoneroom/Archive streams
       final bool isMovieBox = originalUrl.contains('hakunaymatata.com') || originalUrl.contains('aoneroom.com');
       final bool isArchive = originalUrl.contains('archive.org');
+      final bool isLookMovieOrKorso = originalUrl.contains('lookmovie2.skin') || originalUrl.contains('lookmovie') || originalUrl.contains('korso420dim.com') || originalUrl.contains('cdn30091') || originalUrl.contains('cdn30092') || originalUrl.contains('tiktokcdn.com');
       final bool alreadyTriedVercel = playUrl.contains('ver-orcin-alpha.vercel.app');
       final bool alreadyTriedCf = hasCfProxy && playUrl.startsWith(cfProxyUrl);
       
@@ -776,6 +792,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _chewieController?.dispose();
           _chewieController = null;
           _initNetworkPlayer(cfUrl);
+          return;
+        }
+      } else if (isLookMovieOrKorso) {
+        if (!alreadyTriedVercel) {
+          String vercelUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(originalUrl)}';
+          if (cleanReferer != null) {
+            vercelUrl += '&referer=${Uri.encodeComponent(cleanReferer)}';
+          } else {
+            vercelUrl += '&referer=${Uri.encodeComponent('https://lookmovie2.skin/')}';
+          }
+          debugPrint('[PlayerScreen] LookMovie direct playback failed. Falling back to Vercel Proxy: $vercelUrl');
+          _webVideoPlayerController?.dispose();
+          _webVideoPlayerController = null;
+          _chewieController?.dispose();
+          _chewieController = null;
+          _initNetworkPlayer(vercelUrl);
           return;
         }
       }

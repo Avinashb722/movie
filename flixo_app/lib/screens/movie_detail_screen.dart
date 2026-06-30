@@ -453,10 +453,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         Expanded(
                           flex: 2,
                           child: _ActionButton(
-                            icon: Icons.play_arrow,
-                            label: 'Play',
+                            icon: Icons.play_arrow_rounded,
+                            label: 'Play Direct',
                             filled: true,
-                            onTap: _startPlayFlow,
+                            onTap: _startDirect2EmbedFlow,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Icons.alt_route_rounded,
+                            label: 'Other Links',
+                            filled: false,
+                            onTap: _startAlternativeServersFlow,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -766,6 +775,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             existingUrls.add(url);
             String lang = 'Multi/English';
             int resVal = 720;
+            String parsedReferer = 'https://lookmovie2.skin/';
             for (int i = 1; i < parts.length; i++) {
               final p = parts[i].trim();
               if (p.startsWith('language=')) {
@@ -780,7 +790,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   resVal = 360;
                 }
               } else if (p.startsWith('referer=')) {
-                // optional referer override
+                parsedReferer = p.substring(8);
               }
             }
             movieBoxStreams.add(MovieBoxStream(
@@ -788,7 +798,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               resolution: resVal,
               size: 'Fast Stream',
               language: lang,
-              referer: 'https://new.vidnest.fun/',
+              referer: parsedReferer,
               subjectId: '2embed',
               detailPath: '',
             ));

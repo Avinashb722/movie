@@ -17,8 +17,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   
-  final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  if (isWindows) {
+  final bool startProxy = !kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.android);
+  if (startProxy) {
     await LocalStreamingProxy.instance.start();
   }
 
