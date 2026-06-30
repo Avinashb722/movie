@@ -133,8 +133,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           language = language.replaceFirst('English', actualOrigLang);
         }
 
+        String sanitizedUrl = urlPart;
+        if (sanitizedUrl.contains('|language=')) {
+          sanitizedUrl = sanitizedUrl.split('|language=')[0];
+        }
+
         _alternativeLanguageStreams.add({
-          'url': urlPart + (referer != null ? '|referer=$referer' : ''),
+          'url': sanitizedUrl + (referer != null ? '|referer=$referer' : ''),
           'language': language,
         });
         debugPrint('[PlayerScreen] Language stream detected: $language → ${urlPart.substring(0, urlPart.length.clamp(0, 60))}...');
@@ -661,7 +666,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             debugPrint('[PlayerScreen] Windows - Playing stream directly: $playUrl');
           }
         } else {
-          final bool isProxyUrl = url.contains('ver-orcin-alpha.vercel.app') || (hasCfProxy && url.startsWith(cfProxyUrl));
+          final bool isProxyUrl = url.contains('ver-orcin-alpha.vercel.app') || url.contains('127.0.0.1') || (hasCfProxy && url.startsWith(cfProxyUrl));
           if (!isProxyUrl) {
             final bool isLookMovieOrKorso = cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('cdn30091') || cleanUrl.contains('cdn30092') || cleanUrl.contains('tiktokcdn.com');
             if (isLookMovieOrKorso) {
@@ -1565,6 +1570,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (_webVideoPlayerController != null) {
         await _webVideoPlayerController!.seekTo(position);
         await _webVideoPlayerController!.play();
+      }
+      return;
+    }
+
+    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    if (!isWindows) {
+      // Android / iOS native: uses video_player + chewie controllers instead of media_kit
+      final position = _chewieController?.videoPlayerController.value.position ?? Duration.zero;
+      if (mounted) setState(() { _loading = true; _statusMessage = 'Switching to $languageName...'; });
+
+      final oldVc = _webVideoPlayerController;
+      final oldCc = _chewieController;
+      _webVideoPlayerController = null;
+      _chewieController = null;
+
+      if (oldVc != null) await oldVc.dispose();
+      if (oldCc != null) oldCc.dispose();
+
+      _currentLanguageStreamIndex = index;
+      _isDirectPlayback = true; // Mark as direct to use Chewie controller layouts
+      await _initNetworkPlayer(targetUrl);
+
+      if (_chewieController != null) {
+        await _chewieController!.videoPlayerController.seekTo(position);
+        await _chewieController!.videoPlayerController.play();
       }
       return;
     }

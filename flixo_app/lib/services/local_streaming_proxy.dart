@@ -112,8 +112,11 @@ class LocalStreamingProxy {
     final bool isTikTok = targetUrl.contains('tiktokcdn.com');
     final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
     final bool isAoneroom = targetUrl.contains('aoneroom.com') || targetUrl.contains('hakunaymatata.com');
-    final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie');
-    final bool useVercel = isLookMovie;
+    final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
+    // On Android and iOS, direct connection is preferred to ensure the client IP matches the signed IP in the URL.
+    final bool useVercel = isLookMovie && 
+                           !targetUrl.contains('ver-orcin-alpha.vercel.app') && 
+                           !(Platform.isAndroid || Platform.isIOS);
 
     if (request.uri.path == '/play') {
       _lastReferer = '';
@@ -205,6 +208,21 @@ class LocalStreamingProxy {
       } else if (rangeHeader != null) {
         clientReq.headers.set('Range', rangeHeader);
       }
+
+      // Forward incoming client request headers directly to the target request
+      // (e.g., Origin, Referer, User-Agent) to match exactly what player_screen configured
+      request.headers.forEach((name, values) {
+        final lower = name.toLowerCase();
+        if (lower != 'host' && 
+            lower != 'content-length' && 
+            lower != 'connection' && 
+            lower != 'accept-encoding') {
+          clientReq.headers.removeAll(name);
+          for (final val in values) {
+            clientReq.headers.add(name, val);
+          }
+        }
+      });
 
       // Skip verbose headers console logging in production to prevent blocking
       // clientReq.headers.forEach((name, values) => debugPrint('  $name: ${values.join(", ")}'));
@@ -320,6 +338,7 @@ class LocalStreamingProxy {
           final refParam = _lastReferer.isNotEmpty ? '&referer=${Uri.encodeComponent(_lastReferer)}' : '';
           return 'http://127.0.0.1:$_port/play.ts?url=${Uri.encodeComponent(originalUrl)}$refParam';
         });
+        request.response.headers.set('Content-Type', 'application/vnd.apple.mpegurl');
         request.response.headers.contentLength = utf8.encode(rewrittenBody).length;
         request.response.add(utf8.encode(rewrittenBody));
         await request.response.close();
@@ -405,9 +424,12 @@ class LocalStreamingProxy {
       final targetUrl = targetUri.toString();
       final bool isTikTok = targetUrl.contains('tiktokcdn.com');
       final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
-      final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie');
+      final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
 
-      final bool useVercel = isLookMovie;
+      // On Android and iOS, direct connection is preferred to ensure the client IP matches the signed IP in the URL.
+      final bool useVercel = isLookMovie && 
+                             !targetUrl.contains('ver-orcin-alpha.vercel.app') && 
+                             !(Platform.isAndroid || Platform.isIOS);
 
       Uri finalUri;
       if (isTikTok) {
@@ -481,6 +503,21 @@ class LocalStreamingProxy {
       } else if (rangeHeader != null) {
         clientReq.headers.set('Range', rangeHeader);
       }
+
+      // Forward incoming client request headers directly to the target request
+      // (e.g., Origin, Referer, User-Agent) to match exactly what player_screen configured
+      request.headers.forEach((name, values) {
+        final lower = name.toLowerCase();
+        if (lower != 'host' && 
+            lower != 'content-length' && 
+            lower != 'connection' && 
+            lower != 'accept-encoding') {
+          clientReq.headers.removeAll(name);
+          for (final val in values) {
+            clientReq.headers.add(name, val);
+          }
+        }
+      });
 
       clientReq.followRedirects = false;
       var clientResp = await clientReq.close();
@@ -589,6 +626,7 @@ class LocalStreamingProxy {
           final refParam = _lastReferer.isNotEmpty ? '&referer=${Uri.encodeComponent(_lastReferer)}' : '';
           return 'http://127.0.0.1:$_port/play.ts?url=${Uri.encodeComponent(originalUrl)}$refParam';
         });
+        request.response.headers.set('Content-Type', 'application/vnd.apple.mpegurl');
         request.response.headers.chunkedTransferEncoding = false;
         request.response.headers.contentLength = utf8.encode(rewrittenBody).length;
         request.response.write(rewrittenBody);

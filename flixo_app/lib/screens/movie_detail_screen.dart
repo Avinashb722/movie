@@ -679,13 +679,28 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       if (mounted) Navigator.pop(context);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         HistoryService.instance.addToHistory(m);
+        
+        String cleanUrl = streamUrl;
+        String? cleanReferer;
+        if (streamUrl.contains('|referer=')) {
+          final parts = streamUrl.split('|referer=');
+          cleanUrl = parts[0];
+          if (parts.length > 1 && parts[1].isNotEmpty) {
+            cleanReferer = parts[1];
+            if (cleanReferer.contains('|')) {
+              cleanReferer = cleanReferer.split('|')[0];
+            }
+          }
+        }
+
         if (mounted) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => PlayerScreen(
                 movie: m,
-                directUrl: streamUrl,
+                directUrl: cleanUrl,
+                referer: cleanReferer,
               ),
             ),
           );
