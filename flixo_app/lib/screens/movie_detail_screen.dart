@@ -20,6 +20,8 @@ import '../theme/app_theme.dart';
 import 'player_screen.dart';
 import '../services/two_embed_service.dart';
 import '../widgets/web_iframe.dart';
+import 'downloads_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final Movie movie;
@@ -254,7 +256,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: Colors.white),
-                onPressed: () {},
+                onPressed: () {
+                  final overviewText = m.overview.isNotEmpty ? '\n\n${m.overview}' : '';
+                  Share.share(
+                    'Check out "${m.title}" on Flixo!$overviewText',
+                    subject: 'Share "${m.title}"',
+                  );
+                },
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -679,19 +687,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       if (mounted) Navigator.pop(context);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         HistoryService.instance.addToHistory(m);
-        
-        String cleanUrl = streamUrl;
-        String? cleanReferer;
-        if (streamUrl.contains('|referer=')) {
-          final parts = streamUrl.split('|referer=');
-          cleanUrl = parts[0];
-          if (parts.length > 1 && parts[1].isNotEmpty) {
-            cleanReferer = parts[1];
-            if (cleanReferer.contains('|')) {
-              cleanReferer = cleanReferer.split('|')[0];
-            }
-          }
-        }
 
         if (mounted) {
           Navigator.push(
@@ -699,8 +694,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             MaterialPageRoute(
               builder: (_) => PlayerScreen(
                 movie: m,
-                directUrl: cleanUrl,
-                referer: cleanReferer,
+                directUrl: streamUrl,
               ),
             ),
           );
@@ -723,16 +717,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   Future<void> _startAlternativeServersFlow() async {
-    await _startPlayFlow();
+    await _startPlayFlow(isDownloadFlow: false);
   }
 
-  Future<void> _startPlayFlow() async {
+  Future<void> _startPlayFlow({bool isDownloadFlow = false}) async {
     final m = _detail ?? widget.movie;
     final title = m.title;
     final yearVal = int.tryParse(m.year);
     final imdb = _detail?.imdbId ?? '';
 
-    debugPrint('[MovieDetail] Starting play flow for: $title (IMDB: $imdb)');
+    debugPrint('[MovieDetail] Starting play flow (isDownload=$isDownloadFlow) for: $title (IMDB: $imdb)');
 
     showDialog(
       context: context,
@@ -759,6 +753,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     List<TorrentStream> torrents = [];
     List<MovieBoxStream> movieBoxStreams = [];
     List<ArchiveStream> archives = [];
+    List<MovieBoxStream> twoEmbedStreams = [];
 
     try {
       // Run all stream resolution concurrently
@@ -780,14 +775,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       final twoEmbedStream = results[3] as String?;
 
       if (twoEmbedStream != null && twoEmbedStream.isNotEmpty) {
-        final existingUrls = movieBoxStreams.map((s) => s.url).toSet();
         final configs = twoEmbedStream.split('||');
         for (final cfg in configs) {
           if (cfg.trim().isEmpty) continue;
           final parts = cfg.split('|');
           final url = parts[0].trim();
-          if (url.isNotEmpty && !existingUrls.contains(url)) {
-            existingUrls.add(url);
+          if (url.isNotEmpty) {
             String lang = 'Multi/English';
             int resVal = 720;
             String parsedReferer = 'https://lookmovie2.skin/';
@@ -808,7 +801,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 parsedReferer = p.substring(8);
               }
             }
-            movieBoxStreams.add(MovieBoxStream(
+            twoEmbedStreams.add(MovieBoxStream(
               url: url,
               resolution: resVal,
               size: 'Fast Stream',
@@ -827,9 +820,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     if (!mounted) return;
     Navigator.pop(context); // Dismiss loading dialog
 
-    debugPrint('[MovieDetail] Found: ${movieBoxStreams.length} MovieBox, ${archives.length} Archive, ${torrents.length} Torrent streams');
+    debugPrint('[MovieDetail] Found: ${twoEmbedStreams.length} 2Embed, ${movieBoxStreams.length} MovieBox, ${archives.length} Archive, ${torrents.length} Torrent streams');
 
-    if (torrents.isEmpty && archives.isEmpty && movieBoxStreams.isEmpty) {
+    if (torrents.isEmpty && archives.isEmpty && movieBoxStreams.isEmpty && twoEmbedStreams.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No streaming sources found for this movie.'),
@@ -870,6 +863,88 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               Expanded(
                 child: ListView(
                   children: [
+                    if (twoEmbedStreams.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Text(
+                          'Direct Web Streaming (2Embed)',
+                          style: TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                      ...twoEmbedStreams.map((s) {
+                        final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
+                        return ListTile(
+                          leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
+                          title: Text(
+                            '2Embed ${s.resolution}p$langSuffix',
+                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: const Text(
+                            'Direct HLS/CDN Stream',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            final url = s.url;
+                            debugPrint('[MovieDetail] Selected stream: 2Embed ${s.resolution}p');
+                            debugPrint('[MovieDetail] URL: $url');
+                            if (url.trim().isEmpty) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
+                              );
+                              return;
+                            }
+                            if (isDownloadFlow) {
+                              DownloadService.instance.addDownload(
+                                m.title,
+                                '2h 00m',
+                                '${s.resolution}p',
+                                m.posterUrl,
+                                downloadUrl: url,
+                                movieBoxSubjectId: s.subjectId,
+                                movieBoxDetailPath: s.detailPath,
+                              );
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${m.title}" added to downloads queue!'),
+                                  backgroundColor: AppColors.surface,
+                                  action: SnackBarAction(
+                                    label: 'View',
+                                    textColor: AppColors.accent,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        this.context,
+                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            HistoryService.instance.addToHistory(m);
+                            Navigator.push(
+                              this.context,
+                              MaterialPageRoute(
+                                builder: (_) => PlayerScreen(
+                                  movie: m,
+                                  directUrl: url,
+                                  referer: s.referer,
+                                  resolution: s.resolution,
+                                  subjectId: s.subjectId,
+                                  detailPath: s.detailPath,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      }),
+                    ],
                     if (movieBoxStreams.isNotEmpty) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -903,6 +978,34 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             if (url.trim().isEmpty) {
                               ScaffoldMessenger.of(this.context).showSnackBar(
                                 const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
+                              );
+                              return;
+                            }
+                            if (isDownloadFlow) {
+                              DownloadService.instance.addDownload(
+                                m.title,
+                                '2h 00m',
+                                '${s.resolution}p',
+                                m.posterUrl,
+                                downloadUrl: url,
+                                movieBoxSubjectId: s.subjectId,
+                                movieBoxDetailPath: s.detailPath,
+                              );
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${m.title}" added to downloads queue!'),
+                                  backgroundColor: AppColors.surface,
+                                  action: SnackBarAction(
+                                    label: 'View',
+                                    textColor: AppColors.accent,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        this.context,
+                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
                               );
                               return;
                             }
@@ -960,6 +1063,32 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               );
                               return;
                             }
+                            if (isDownloadFlow) {
+                              DownloadService.instance.addDownload(
+                                m.title,
+                                '2h 00m',
+                                'Archive Stream',
+                                m.posterUrl,
+                                downloadUrl: url,
+                              );
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${m.title}" added to downloads queue!'),
+                                  backgroundColor: AppColors.surface,
+                                  action: SnackBarAction(
+                                    label: 'View',
+                                    textColor: AppColors.accent,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        this.context,
+                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
                             HistoryService.instance.addToHistory(m);
                             Navigator.push(
                               this.context,
@@ -1001,6 +1130,38 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           ),
                           onTap: () {
                             Navigator.pop(context);
+                            if (isDownloadFlow) {
+                              if (t.magnetUri.isEmpty) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(content: Text('Magnet link unavailable for download.'), backgroundColor: Colors.redAccent),
+                                );
+                                return;
+                              }
+                              DownloadService.instance.addDownload(
+                                m.title,
+                                '2h 00m',
+                                t.quality,
+                                m.posterUrl,
+                                magnetUri: t.magnetUri,
+                              );
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${m.title}" (${t.quality}) added to downloads queue!'),
+                                  backgroundColor: AppColors.surface,
+                                  action: SnackBarAction(
+                                    label: 'View',
+                                    textColor: AppColors.accent,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        this.context,
+                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
                             HistoryService.instance.addToHistory(m);
                             Navigator.push(
                               this.context,
@@ -1026,7 +1187,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   void _startDownloadFlow() {
-    _startPlayFlow();
+    _startPlayFlow(isDownloadFlow: true);
   }
 }
 

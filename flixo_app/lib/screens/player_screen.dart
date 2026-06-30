@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,7 @@ import '../widgets/web_video_player_stub.dart'
 import 'stream_screen.dart';
 import '../services/local_streaming_proxy.dart';
 import '../services/archive_service.dart';
+import 'downloads_screen.dart';
 
 
 class PlayerScreen extends StatefulWidget {
@@ -86,6 +88,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentLanguageStreamIndex = 0;
   String? _originalDirectUrl;
 
+  // HLS Manifest Resolution fields
+  List<Map<String, String>> _hlsResolutions = [];
+  int _currentResolutionIndex = 0;
+
   List<TorrentStream> _bgTorrents = [];
   List<MovieBoxStream> _bgMovieBox = [];
   List<ArchiveStream> _bgArchives = [];
@@ -138,11 +144,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
           sanitizedUrl = sanitizedUrl.split('|language=')[0];
         }
 
-        _alternativeLanguageStreams.add({
-          'url': sanitizedUrl + (referer != null ? '|referer=$referer' : ''),
-          'language': language,
-        });
-        debugPrint('[PlayerScreen] Language stream detected: $language → ${urlPart.substring(0, urlPart.length.clamp(0, 60))}...');
+        final String lowerLang = language.toLowerCase();
+        if (lowerLang.contains('multi')) {
+          String resName = 'Auto';
+          final resMatch = RegExp(r'\((\d+p?)\)').firstMatch(language);
+          if (resMatch != null) {
+            resName = resMatch.group(1)!;
+            if (!resName.endsWith('p')) resName = '${resName}p';
+          }
+          _hlsResolutions.add({
+            'name': resName,
+            'url': sanitizedUrl + (referer != null ? '|referer=$referer' : ''),
+          });
+          debugPrint('[PlayerScreen] Quality stream detected: $resName → ${urlPart.substring(0, urlPart.length.clamp(0, 60))}...');
+        } else {
+          _alternativeLanguageStreams.add({
+            'url': sanitizedUrl + (referer != null ? '|referer=$referer' : ''),
+            'language': language,
+          });
+          debugPrint('[PlayerScreen] Language stream detected: $language → ${urlPart.substring(0, urlPart.length.clamp(0, 60))}...');
+        }
       }
       debugPrint('[PlayerScreen] Total language streams: ${_alternativeLanguageStreams.length}');
     } else {
@@ -493,6 +514,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (mounted) {
         setState(() => _statusMessage = 'Connecting to stream...');
+      }
+
+      if (_hlsResolutions.isEmpty) {
+        _parseHlsResolutions(cleanUrl, cleanReferer);
       }
 
       final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -963,6 +988,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         SnackBar(
           content: Text('"${widget.movie.title}" (${stream.quality}) added to downloads queue!'),
           backgroundColor: AppColors.surface,
+          action: SnackBarAction(
+            label: 'View',
+            textColor: AppColors.accent,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+              );
+            },
+          ),
         ),
       );
     }
@@ -1430,11 +1465,58 @@ class _PlayerScreenState extends State<PlayerScreen> {
           tooltip: 'Alternative Playing Links',
           onPressed: () => _showAlternativeServersSheet(),
         ),
-        if (!_isDirectPlayback && _streams.isNotEmpty)
+        if (_hlsResolutions.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white, size: 20),
+            tooltip: 'Change Quality',
+            onPressed: _showResolutionSelector,
+          ),
+        if (!_isDirectPlayback && _streams.isNotEmpty) ...[
           IconButton(
             icon: const Icon(Icons.download, color: Colors.white, size: 20),
             onPressed: _downloadTorrent,
           ),
+        ] else if (_isDirectPlayback && 
+                   widget.directUrl != null && 
+                   !kIsWeb && 
+                   (Platform.isAndroid || Platform.isIOS)) ...[
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.white, size: 20),
+            tooltip: 'Download Stream',
+            onPressed: () {
+              final String? resolutionName = _hlsResolutions.isNotEmpty
+                  ? _hlsResolutions[_currentResolutionIndex]['name']
+                  : (widget.resolution != null ? '${widget.resolution}p' : 'Direct Stream');
+              
+              DownloadService.instance.addDownload(
+                widget.movie.title,
+                '2h 00m',
+                resolutionName ?? 'Direct Stream',
+                widget.movie.posterUrl,
+                downloadUrl: widget.directUrl,
+                movieBoxSubjectId: widget.subjectId ?? '',
+                movieBoxDetailPath: widget.detailPath ?? '',
+              );
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('"${widget.movie.title}" added to downloads queue!'),
+                  backgroundColor: AppColors.surface,
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: AppColors.accent,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ])),
     );
   }
@@ -1718,30 +1800,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _showMultiStreamSelector() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF161616),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    'Select Audio Language',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.audiotrack, color: AppColors.accent, size: 22),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Select Audio Language',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Divider(color: Colors.white10, height: 16),
+                const Divider(color: Colors.white10, height: 1),
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
@@ -1752,29 +1841,310 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       final isSelected = index == _currentLanguageStreamIndex;
                       final languageName = stream['language']!;
                       
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                        leading: Icon(
-                          isSelected ? Icons.check_circle : Icons.audiotrack,
-                          color: isSelected ? Colors.greenAccent : Colors.white30,
-                          size: 20,
-                        ),
-                        title: Text(
-                          languageName,
-                          style: TextStyle(
-                            color: isSelected ? Colors.greenAccent : Colors.white,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
+                      return InkWell(
                         onTap: () {
                           Navigator.pop(context);
                           _switchLanguageStream(index);
                         },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? AppColors.accent.withValues(alpha: 0.3) : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? Icons.check_circle : Icons.audiotrack,
+                                color: isSelected ? AppColors.accent : Colors.white30,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  languageName,
+                                  style: TextStyle(
+                                    color: isSelected ? AppColors.accent : Colors.white,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                const Text(
+                                  'Active',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),
                 ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _parseHlsResolutions(String originalUrl, String? referer) async {
+    try {
+      final lower = originalUrl.toLowerCase();
+      if (!lower.contains('.m3u8')) return;
+
+      // Only parse if it's the main master playlist, not a sub-playlist
+      if (lower.contains('/360/') || lower.contains('/480/') || lower.contains('/720/')) {
+        return;
+      }
+
+      debugPrint('[PlayerScreen] Parsing HLS resolutions for: $originalUrl');
+      final uri = Uri.parse(originalUrl);
+      
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 5)
+        ..badCertificateCallback = (cert, host, port) => true;
+      final req = await client.getUrl(uri);
+      req.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+      if (referer != null && referer.isNotEmpty) {
+        req.headers.set('Referer', referer);
+        try {
+          final refUri = Uri.parse(referer);
+          req.headers.set('Origin', '${refUri.scheme}://${refUri.host}');
+        } catch (_) {}
+      }
+      final resp = await req.close();
+      if (resp.statusCode != 200) {
+        client.close();
+        return;
+      }
+      final body = await resp.transform(utf8.decoder).join();
+      client.close();
+
+      if (!body.contains('#EXTM3U')) return;
+
+      final List<Map<String, String>> parsed = [];
+      parsed.add({'name': 'Auto', 'url': originalUrl});
+
+      final lines = body.split('\n');
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+        if (line.startsWith('#EXT-X-STREAM-INF:')) {
+          String resName = 'Unknown';
+          final resMatch = RegExp(r'RESOLUTION=(\d+)x(\d+)').firstMatch(line);
+          if (resMatch != null) {
+            final height = int.tryParse(resMatch.group(2)!) ?? 0;
+            resName = '${height}p';
+          }
+          
+          if (i + 1 < lines.length) {
+            final nextLine = lines[i + 1].trim();
+            if (nextLine.isNotEmpty && !nextLine.startsWith('#')) {
+              final subUri = uri.resolve(nextLine);
+              parsed.add({
+                'name': resName,
+                'url': subUri.toString(),
+              });
+            }
+          }
+        }
+      }
+
+      if (parsed.length > 1) {
+        if (mounted) {
+          setState(() {
+            _hlsResolutions = parsed;
+          });
+          debugPrint('[PlayerScreen] Found HLS resolutions: ${_hlsResolutions.map((e) => e['name']).toList()}');
+        }
+      }
+    } catch (e) {
+      debugPrint('[PlayerScreen] Failed to parse HLS resolutions: $e');
+    }
+  }
+
+  Future<void> _switchResolution(int index) async {
+    if (index < 0 || index >= _hlsResolutions.length) return;
+    
+    final selected = _hlsResolutions[index];
+    final targetUrl = selected['url']!;
+    final resName = selected['name']!;
+
+    debugPrint('[PlayerScreen] Switching resolution to $resName: $targetUrl');
+
+    if (kIsWeb) {
+      final position = _webVideoPlayerController?.value.position ?? Duration.zero;
+      if (mounted) setState(() { _loading = true; _statusMessage = 'Switching quality to $resName...'; });
+      
+      final oldVc = _webVideoPlayerController;
+      final oldCc = _chewieController;
+      _webVideoPlayerController = null;
+      _chewieController = null;
+      
+      if (oldVc != null) await oldVc.dispose();
+      if (oldCc != null) oldCc.dispose();
+      
+      _currentResolutionIndex = index;
+      await _initNetworkPlayer(targetUrl);
+      
+      if (_webVideoPlayerController != null) {
+        await _webVideoPlayerController!.seekTo(position);
+        await _webVideoPlayerController!.play();
+      }
+      return;
+    }
+
+    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    if (!isWindows) {
+      final position = _chewieController?.videoPlayerController.value.position ?? Duration.zero;
+      if (mounted) setState(() { _loading = true; _statusMessage = 'Switching quality to $resName...'; });
+
+      final oldVc = _webVideoPlayerController;
+      final oldCc = _chewieController;
+      _webVideoPlayerController = null;
+      _chewieController = null;
+
+      if (oldVc != null) await oldVc.dispose();
+      if (oldCc != null) oldCc.dispose();
+
+      _currentResolutionIndex = index;
+      _isDirectPlayback = true;
+      await _initNetworkPlayer(targetUrl);
+
+      if (_chewieController != null) {
+        await _chewieController!.videoPlayerController.seekTo(position);
+        await _chewieController!.videoPlayerController.play();
+      }
+      return;
+    } else {
+      if (_mediaKitPlayer == null) return;
+      final position = _mediaKitPlayer!.state.position;
+      
+      if (mounted) setState(() { _loading = true; _statusMessage = 'Switching quality to $resName...'; });
+      
+      _currentResolutionIndex = index;
+      final proxyPort = LocalStreamingProxy.instance.port;
+      
+      final refParam = widget.referer != null ? '&referer=${Uri.encodeComponent(widget.referer!)}' : '';
+      final playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(targetUrl)}$refParam';
+      
+      await _mediaKitPlayer!.open(mk.Media(playUrl), play: true);
+      
+      if (position.inSeconds > 2) {
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (_mediaKitPlayer != null && mounted) {
+          await _mediaKitPlayer!.seek(position);
+        }
+      }
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
+  void _showResolutionSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.settings, color: AppColors.accent, size: 22),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Select Video Quality',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Colors.white10, height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: _hlsResolutions.length,
+                    itemBuilder: (context, index) {
+                      final res = _hlsResolutions[index];
+                      final isSelected = index == _currentResolutionIndex;
+                      final resName = res['name']!;
+                      
+                      return InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _switchResolution(index);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? AppColors.accent.withValues(alpha: 0.3) : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? Icons.check_circle : Icons.settings,
+                                color: isSelected ? AppColors.accent : Colors.white30,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  resName,
+                                  style: TextStyle(
+                                    color: isSelected ? AppColors.accent : Colors.white,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                const Text(
+                                  'Active',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
             ),
           ),

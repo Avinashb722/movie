@@ -442,14 +442,30 @@ class DownloadService {
         }
       }
       
+      // Decode and extract the target URL if it is routed through the local proxy
+      if (cleanUrl.contains('/play?url=')) {
+        final match = RegExp(r'/play\?url=([^&]+)').firstMatch(cleanUrl);
+        if (match != null) {
+          cleanUrl = Uri.decodeComponent(match.group(1)!);
+        }
+      } else if (cleanUrl.contains('/play.ts?url=')) {
+        final match = RegExp(r'/play\.ts\?url=([^&]+)').firstMatch(cleanUrl);
+        if (match != null) {
+          cleanUrl = Uri.decodeComponent(match.group(1)!);
+        }
+      }
+      
       if (item.quality.toLowerCase().contains('2embed') || cleanUrl.contains('lookmovie') || cleanUrl.contains('tiktokcdn.com') || cleanUrl.contains('korso420dim.com')) {
         headers['Referer'] = 'https://gemma416okl.com';
         headers['Origin'] = 'https://gemma416okl.com';
         headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
       }
 
-      final ext = cleanUrl.split('?').first.split('.').last;
-      final fileExt = ext.length > 4 || ext.isEmpty ? 'mp4' : ext;
+      final bool isHls = cleanUrl.split('?').first.toLowerCase().endsWith('.m3u8');
+      final String fileExt = isHls ? 'mp4' : (() {
+        final ext = cleanUrl.split('?').first.split('.').last;
+        return ext.length > 4 || ext.isEmpty ? 'mp4' : ext;
+      })();
       final filePath = '$dirPath/$safeTitle.$fileExt';
 
       final cancelToken = CancelToken();
@@ -501,7 +517,6 @@ class DownloadService {
       }
 
       // Step 1: Detect if HLS (.m3u8) stream and parse segments if applicable
-      final bool isHls = cleanUrl.split('?').first.endsWith('.m3u8');
       List<String>? segmentUrls;
 
       if (isHls) {
@@ -633,7 +648,11 @@ class DownloadService {
           totalSize: totalSize,
           numChunks: numChunks,
           segmentUrls: segmentUrls,
-          is2Embed: item.quality.toLowerCase().contains('2embed') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('tiktokcdn.com'),
+          is2Embed: item.quality.toLowerCase().contains('2embed') || 
+                    cleanUrl.contains('lookmovie') || 
+                    cleanUrl.contains('korso420dim.com') || 
+                    cleanUrl.contains('tiktokcdn.com') ||
+                    item.movieBoxSubjectId == '2embed',
         );
 
         final isolate = await Isolate.spawn(_backgroundDownloadEntry, bgParams);
@@ -1364,7 +1383,13 @@ void _backgroundDownloadEntry(_BgDownloadParams params) async {
       }
 
       final Map<String, String> requestHeaders = Map<String, String>.from(params.headers);
-      if (params.is2Embed || url.contains('tiktokcdn.com') || url.contains('lookmovie') || url.contains('korso420dim.com')) {
+      if (params.is2Embed || 
+          url.contains('tiktokcdn.com') || 
+          url.contains('lookmovie') || 
+          url.contains('korso420dim.com') ||
+          params.downloadUrl.contains('lookmovie') ||
+          params.downloadUrl.contains('korso420dim.com') ||
+          params.downloadUrl.contains('2embed')) {
         requestHeaders['Referer'] = 'https://gemma416okl.com';
         requestHeaders['Origin'] = 'https://gemma416okl.com';
         requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
