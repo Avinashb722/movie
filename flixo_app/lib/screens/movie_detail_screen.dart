@@ -953,7 +953,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
                           onTap: () {
-                            Navigator.pop(context);
+                            if (isDownloadFlow) {
+                              Navigator.pop(context);
+                            }
                             final url = s.url;
                             debugPrint('[MovieDetail] Selected stream: 2Embed ${s.resolution}p');
                             debugPrint('[MovieDetail] URL: $url');
@@ -1035,7 +1037,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
                           onTap: () {
-                            Navigator.pop(context);
+                            if (isDownloadFlow) {
+                              Navigator.pop(context);
+                            }
                             final url = s.url;
                             debugPrint('[MovieDetail] Selected stream: MovieBox ${s.resolution}p');
                             debugPrint('[MovieDetail] URL: $url');
@@ -1117,7 +1121,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
                           onTap: () {
-                            Navigator.pop(context);
+                            if (isDownloadFlow) {
+                              Navigator.pop(context);
+                            }
                             final url = a.url;
                             debugPrint('[MovieDetail] Selected stream: ${a.label}');
                             debugPrint('[MovieDetail] URL: $url');
@@ -1194,8 +1200,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           ),
                           trailing: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 18),
                           onTap: () {
-                            Navigator.pop(context);
                             final bool isMobile = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
+                            if (isDownloadFlow || isMobile) {
+                              Navigator.pop(context);
+                            }
                             if (isMobile) {
                               Clipboard.setData(ClipboardData(text: t.magnetUri));
                               ScaffoldMessenger.of(this.context).showSnackBar(
