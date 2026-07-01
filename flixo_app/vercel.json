@@ -1,13 +1,15 @@
 {
   "version": 2,
   "builds": [
-    { "src": "build/web/**", "use": "@vercel/static" },
-    { "src": "vercel_proxy/api/index.js", "use": "@vercel/node" }
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": "api/index.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/.well-known/assetlinks.json", "dest": "/assetlinks.json" },
-    { "src": "/downloads/(.*)", "dest": "/downloads/$1" },
-    { "src": "/api(.*)", "dest": "vercel_proxy/api/index.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/.well-known/assetlinks.json", "dest": "/public/assetlinks.json" },
+    { "src": "/downloads/(.*)", "dest": "/public/downloads/$1" },
+    { "src": "/api(.*)", "dest": "/api/index.js" },
+    { "src": "/((?!api/|downloads/|\\.well-known/|public/).*)", "dest": "/public/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
