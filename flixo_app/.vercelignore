@@ -3,7 +3,8 @@
 .git
 .gitignore
 node_modules
-build/
 android/
 ios/
 windows/
+build/*
+!build/web/
