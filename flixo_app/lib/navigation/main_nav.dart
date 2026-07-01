@@ -40,6 +40,7 @@ class MainNav extends StatefulWidget {
 class _MainNavState extends State<MainNav> {
   int _idx = 0;
   bool _isCollapsed = false;
+  bool _isDeepLinkLoading = false;
 
   final _mobileScreens = const [
     HomeScreen(),
@@ -270,6 +271,16 @@ class _MainNavState extends State<MainNav> {
       }
     } catch (e) {
       debugPrint('Error searching and pushing movie: $e');
+    } finally {
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            setState(() {
+              _isDeepLinkLoading = false;
+            });
+          }
+        });
+      }
     }
   }
 
@@ -311,50 +322,53 @@ class _MainNavState extends State<MainNav> {
       final String initPath = Uri.base.path;
       final String initFragment = Uri.base.fragment;
 
+      if (initPath.contains('/movie/') || initFragment.contains('/movie/')) {
+        _isDeepLinkLoading = true;
+      }
+
+      int initialIdx = 0;
+      try {
+        if (initFragment.isNotEmpty) {
+          initialIdx = _pathToIndex(initFragment);
+        } else {
+          initialIdx = _pathToIndex(initPath);
+        }
+      } catch (_) {}
+
+      _idx = initialIdx;
+      mainNavTabNotifier.value = initialIdx;
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Delay URL restoration by 150ms to allow Flutter engine's internal router to finish booting
-        Future.delayed(const Duration(milliseconds: 150), () {
-          if (!mounted) return;
-          
-          int initialIdx = 0;
-          try {
-            if (initFragment.isNotEmpty) {
-              initialIdx = _pathToIndex(initFragment);
-            } else {
-              initialIdx = _pathToIndex(initPath);
-            }
-          } catch (_) {}
-
-          mainNavTabNotifier.value = initialIdx;
-          setState(() {
-            _idx = initialIdx;
-          });
+        if (!mounted) return;
+        
+        final bool isMovieLink = initPath.contains('/movie/') || initFragment.contains('/movie/');
+        if (!isMovieLink) {
           _updateBrowserUrl(initialIdx);
-          _updateWebTabSeo(initialIdx);
-          
-          // Execute deep-linking for direct movie links
-          try {
-            String targetPath = initPath;
-            if (initFragment.isNotEmpty) {
-              final fragmentUri = Uri.parse(initFragment);
-              if (fragmentUri.path.contains('/movie/')) {
-                targetPath = fragmentUri.path;
+        }
+        _updateWebTabSeo(initialIdx);
+        
+        // Execute deep-linking for direct movie links
+        try {
+          String targetPath = initPath;
+          if (initFragment.isNotEmpty) {
+            final fragmentUri = Uri.parse(initFragment);
+            if (fragmentUri.path.contains('/movie/')) {
+              targetPath = fragmentUri.path;
+            }
+          }
+          if (targetPath.contains('/movie/')) {
+            final segments = targetPath.split('/movie/');
+            if (segments.length > 1) {
+              final slug = segments[1].trim();
+              if (slug.isNotEmpty) {
+                final query = slug.replaceAll('-', ' ');
+                _searchAndPushMovie(query);
               }
             }
-            if (targetPath.contains('/movie/')) {
-              final segments = targetPath.split('/movie/');
-              if (segments.length > 1) {
-                final slug = segments[1].trim();
-                if (slug.isNotEmpty) {
-                  final query = slug.replaceAll('-', ' ');
-                  _searchAndPushMovie(query);
-                }
-              }
-            }
-          } catch (_) {}
+          }
+        } catch (_) {}
 
-          _showWebDownloadPopup();
-        });
+        _showWebDownloadPopup();
       });
     }
     if (!kIsWeb) {
@@ -628,6 +642,14 @@ class _MainNavState extends State<MainNav> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isDeepLinkLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0F0F),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accent),
+        ),
+      );
+    }
     final isDesktop = kIsWeb && MediaQuery.of(context).size.width > 768;
 
     if (isDesktop) {
