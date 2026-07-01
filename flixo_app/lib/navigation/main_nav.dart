@@ -359,7 +359,20 @@ class _MainNavState extends State<MainNav> {
           if (targetPath.contains('/movie/')) {
             final segments = targetPath.split('/movie/');
             if (segments.length > 1) {
-              final slug = segments[1].trim();
+              String slug = segments[1].trim();
+              // Strip query parameters
+              if (slug.contains('?')) {
+                slug = slug.split('?')[0];
+              }
+              // Strip fragment hashes
+              if (slug.contains('#')) {
+                slug = slug.split('#')[0];
+              }
+              // Strip trailing slash
+              if (slug.endsWith('/')) {
+                slug = slug.substring(0, slug.length - 1);
+              }
+              slug = slug.trim();
               if (slug.isNotEmpty) {
                 final query = slug.replaceAll('-', ' ');
                 _searchAndPushMovie(query);
