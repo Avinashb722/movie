@@ -1,0 +1,9 @@
+# Do not ignore downloads folder in Vercel
+.DS_Store
+.git
+.gitignore
+node_modules
+build/
+android/
+ios/
+windows/
