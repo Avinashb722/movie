@@ -7,7 +7,7 @@ class TmdbService {
   static const _key  = 'ee88434dff18c194e5b7a1bec83824b8';
   static const _base = 'https://api.themoviedb.org/3';
   static const _fallbackBase = 'https://api.tmdb.org/3';
-  static const _proxy = 'https://ver-orcin-alpha.vercel.app/api?url=';
+  static const _proxy = 'https://www.movienest.app/api?url=';
   static const imageBase  = 'https://images.tmdb.org/t/p/w500';
   static const backdropBase = 'https://images.tmdb.org/t/p/w1280';
 
