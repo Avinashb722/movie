@@ -49,6 +49,7 @@ class _MainNavState extends State<MainNav> {
     LiveTvScreen(),
     DownloadsScreen(),
     ProfileScreen(),
+    FlixoDownloadScreen(),
   ];
 
   final _desktopScreens = const [
@@ -290,8 +291,9 @@ class _MainNavState extends State<MainNav> {
       if (_idx >= 10) return 0;
       return _idx;
     } else {
-      if (_idx == 7 || _idx == 9) return 4; // Map Profile and Download App to mobile profile index
-      if (_idx >= 5) return 0; // Map non-existent desktop indices back to Home
+      if (_idx == 9) return 5; // Allow FlixoDownloadScreen at index 5 on mobile
+      if (_idx == 7) return 4; // Map Profile to mobile profile index
+      if (_idx >= 6) return 0; // Map other non-existent desktop indices back to Home
       return _idx;
     }
   }
@@ -739,7 +741,7 @@ class _MainNavState extends State<MainNav> {
           border: Border(top: BorderSide(color: Color(0xFF1F1F1F), width: 0.5)),
         ),
         child: BottomNavigationBar(
-          currentIndex: getSafeIndex(false),
+          currentIndex: getSafeIndex(false) > 4 ? 4 : getSafeIndex(false),
           onTap: (i) => mainNavTabNotifier.value = i,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined),       activeIcon: Icon(Icons.home),        label: 'Home'),
