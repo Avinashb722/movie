@@ -29,6 +29,33 @@ export default async function handler(req, res) {
     return res.status(400).send('Missing target URL');
   }
 
+  // Validate hostname to block SSRF and third-party abuse
+  let hostname;
+  try {
+    hostname = new URL(targetUrl).hostname.toLowerCase();
+  } catch (_) {
+    return res.status(400).send('Invalid target URL');
+  }
+
+  const isWhitelisted = 
+    hostname.endsWith('themoviedb.org') ||
+    hostname.endsWith('tmdb.org') ||
+    hostname.endsWith('archive.org') ||
+    hostname.endsWith('aoneroom.com') ||
+    hostname.endsWith('hakunaymatata.com') ||
+    hostname.endsWith('moviebox.org') ||
+    hostname.endsWith('showbox.xyz') ||
+    hostname.endsWith('strem.fun') ||
+    hostname.endsWith('stremio.com') ||
+    hostname.endsWith('github.io') ||
+    hostname.endsWith('githubusercontent.com') ||
+    hostname.endsWith('youtube.com') ||
+    hostname.endsWith('ytimg.com');
+
+  if (!isWhitelisted) {
+    return res.status(403).send('Forbidden: Domain not whitelisted in proxy');
+  }
+
   // Build headers to forward
   const forwardHeaders = {};
   if (req.headers.authorization) forwardHeaders['Authorization'] = req.headers.authorization;

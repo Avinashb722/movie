@@ -6,7 +6,7 @@
     "background_color": "#0F0F0F",
     "theme_color": "#FFC107",
     "description": "Watch unlimited movies, TV shows, and live channels on MovieNest.",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
