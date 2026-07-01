@@ -381,7 +381,9 @@ class _MainNavState extends State<MainNav> {
           }
         } catch (_) {}
 
-        _showWebDownloadPopup();
+        if (!isMovieLink) {
+          _showWebDownloadPopup();
+        }
       });
     }
     if (!kIsWeb) {
