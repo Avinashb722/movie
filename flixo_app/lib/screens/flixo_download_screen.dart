@@ -75,7 +75,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxWidth: isWide ? 640 : double.infinity,
+                      maxWidth: isWide ? 600 : double.infinity,
                     ),
                     child: const _HeroContent(),
                   ),
@@ -171,8 +171,8 @@ class _Logo extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.24),
-        child: Image.asset(
-          'assets/movienest_icon.png',
+          child: Image.asset(
+          'assets/logo.png',
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
             color: Brand.red,
