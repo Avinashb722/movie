@@ -120,6 +120,16 @@ class _FlixoAppState extends State<FlixoApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       home: const AuthGate(),
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        if (name.contains('/movie/')) {
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (_) => const AuthGate(),
+          );
+        }
+        return null;
+      },
     );
   }
 }
