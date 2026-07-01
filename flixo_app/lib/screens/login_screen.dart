@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         if (user != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Account created successfully! Welcome to FLIXO.'),
+              content: const Text('Account created successfully! Welcome to MovieNest.'),
               backgroundColor: AppColors.accent,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -222,12 +222,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       const SizedBox(height: 24),
                       const Center(
                         child: Text(
-                          'FLIXO',
+                          'MOVIENEST',
                           style: TextStyle(
                             color: AppColors.accent,
-                            fontSize: 40,
+                            fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 8,
+                            letterSpacing: 2,
                           ),
                         ),
                       ),

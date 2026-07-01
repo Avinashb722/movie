@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,8 @@ import '../utils/globals.dart';
 import '../services/two_embed_service.dart';
 import '../screens/player_screen.dart';
 import '../models/movie.dart';
+
+import '../widgets/web_download_popup.dart';
 
 class MainNav extends StatefulWidget {
   const MainNav({super.key});
@@ -160,6 +163,22 @@ class _MainNavState extends State<MainNav> {
     }
   }
 
+  void _showWebDownloadPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.4),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: const Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(20),
+          child: WebDownloadPopup(),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -167,18 +186,52 @@ class _MainNavState extends State<MainNav> {
     mainNavTabNotifier.addListener(_onTabChanged);
 
     if (kIsWeb) {
+      // Capture the original browser URL synchronously on creation before Flutter router resets it to root (/)
+      final String initPath = Uri.base.path;
+      final String initFragment = Uri.base.fragment;
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Delay URL restoration by 150ms to allow Flutter engine's internal router to finish booting,
-        // preventing it from resetting the browser URL to root (/).
+        // Delay URL restoration by 150ms to allow Flutter engine's internal router to finish booting
         Future.delayed(const Duration(milliseconds: 150), () {
           if (!mounted) return;
-          final initialIdx = _parseInitialIndex();
+          
+          int initialIdx = 0;
+          try {
+            if (initFragment.isNotEmpty) {
+              initialIdx = _pathToIndex(initFragment);
+            } else {
+              initialIdx = _pathToIndex(initPath);
+            }
+          } catch (_) {}
+
           mainNavTabNotifier.value = initialIdx;
           setState(() {
             _idx = initialIdx;
           });
           _updateBrowserUrl(initialIdx);
-          _handleInitialUrlRoute();
+          
+          // Execute deep-linking for direct movie links
+          try {
+            String targetPath = initPath;
+            if (initFragment.isNotEmpty) {
+              final fragmentUri = Uri.parse(initFragment);
+              if (fragmentUri.path.contains('/movie/')) {
+                targetPath = fragmentUri.path;
+              }
+            }
+            if (targetPath.contains('/movie/')) {
+              final segments = targetPath.split('/movie/');
+              if (segments.length > 1) {
+                final slug = segments[1].trim();
+                if (slug.isNotEmpty) {
+                  final query = slug.replaceAll('-', ' ');
+                  _searchAndPushMovie(query);
+                }
+              }
+            }
+          } catch (_) {}
+
+          _showWebDownloadPopup();
         });
       });
     }
@@ -325,7 +378,7 @@ class _MainNavState extends State<MainNav> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      width: _isCollapsed ? 74 : 240,
+      width: _isCollapsed ? 74 : 270,
       color: AppColors.navBg,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -383,7 +436,7 @@ class _MainNavState extends State<MainNav> {
                             const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
-                              height: 32,
+                              height: 25,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.accent,
@@ -424,7 +477,7 @@ class _MainNavState extends State<MainNav> {
                       padding: const EdgeInsets.all(16.0),
                       child: Center(
                         child: Text(
-                          _isCollapsed ? 'v1.0' : 'Flixo Web v1.0.0\n© 2026 Flixo Inc.',
+                          _isCollapsed ? 'v1.0' : 'MovieNest Web v1.0.0\n© 2026 MovieNest Inc.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.textMuted,
@@ -514,7 +567,7 @@ class _MainNavState extends State<MainNav> {
 
   Widget _buildWebTopHeader(BuildContext context) {
     final categories = ['Home', 'Movies', 'Shows', 'Anime', 'Shorts'];
-    final sidebarWidth = _isCollapsed ? 74.0 : 240.0;
+    final sidebarWidth = _isCollapsed ? 74.0 : 270.0;
     return Container(
       height: 64,
       color: AppColors.background,
@@ -540,15 +593,21 @@ class _MainNavState extends State<MainNav> {
                           onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.play_circle_fill, color: AppColors.accent, size: 24),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'FLIXO',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
+                        Expanded(
+                          child: Image.asset(
+                            'assets/header_logo.png',
+                            height: 38,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.centerLeft,
+                            errorBuilder: (_, __, ___) => const Text(
+                              'MOVIENEST',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
                           ),
                         ),
                       ],

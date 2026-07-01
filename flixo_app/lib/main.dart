@@ -13,6 +13,11 @@ import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'utils/globals.dart';
 
+import 'package:app_links/app_links.dart';
+import 'services/tmdb_service.dart';
+import 'screens/movie_detail_screen.dart';
+import 'models/movie.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
@@ -35,13 +40,61 @@ void main() async {
   runApp(const FlixoApp());
 }
 
-class FlixoApp extends StatelessWidget {
+class FlixoApp extends StatefulWidget {
   const FlixoApp({super.key});
+
+  @override
+  State<FlixoApp> createState() => _FlixoAppState();
+}
+
+class _FlixoAppState extends State<FlixoApp> {
+  final _appLinks = AppLinks();
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() {
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) {
+        _handleDeepLink(uri);
+      }
+    });
+  }
+
+  void _handleDeepLink(Uri uri) async {
+    debugPrint('[DeepLink] Handling deep link: $uri');
+    if (uri.path.contains('/movie')) {
+      final idStr = uri.queryParameters['id'];
+      if (idStr != null) {
+        final id = int.tryParse(idStr);
+        if (id != null) {
+          try {
+            final movie = await TmdbService.getMovieById(id);
+            if (movie != null && mounted) {
+              await Future.delayed(const Duration(milliseconds: 300));
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+              );
+            }
+          } catch (e) {
+            debugPrint('[DeepLink] Error resolving movie ID: $e');
+          }
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FLIXO',
+      title: 'MovieNest',
+      navigatorKey: navigatorKey,
       scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,

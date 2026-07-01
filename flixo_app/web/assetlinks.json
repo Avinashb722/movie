@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.flixo.app",
+      "sha256_cert_fingerprints": [
+        "9D:D5:E3:11:BA:16:12:6F:1B:70:16:3A:C4:54:BE:98:32:0C:79:F1:A4:D4:D2:14:23:64:A1:BD:44:CE:21:75"
+      ]
+    }
+  }
+]

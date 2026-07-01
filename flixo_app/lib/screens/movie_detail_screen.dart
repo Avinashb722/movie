@@ -23,6 +23,7 @@ import '../widgets/web_iframe.dart';
 import 'downloads_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
+import '../utils/globals.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final Movie movie;
@@ -53,6 +54,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   void initState() {
     super.initState();
     _load();
+    if (kIsWeb) {
+      final titleSlug = widget.movie.title
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\s-]'), '')
+          .replaceAll(RegExp(r'\s+'), '-');
+      SystemNavigator.routeInformationUpdated(
+        location: '/movie/$titleSlug',
+      );
+    }
   }
 
   Future<void> _load() async {
@@ -237,8 +247,32 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     }
   }
 
+  String _indexToPath(int index) {
+    switch (index) {
+      case 0: return '/';
+      case 1: return '/discover';
+      case 2: return '/live-tv';
+      case 3: return '/downloads';
+      case 4: return '/watchlist';
+      case 5: return '/history';
+      case 6: return '/blog';
+      case 7: return '/profile';
+      case 8: return '/settings';
+      case 9: return '/download-app';
+      default: return '/';
+    }
+  }
+
   @override
   void dispose() {
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          final currentTab = mainNavTabNotifier.value;
+          SystemNavigator.routeInformationUpdated(location: _indexToPath(currentTab));
+        } catch (_) {}
+      });
+    }
     super.dispose();
   }
 
@@ -265,9 +299,26 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: Colors.white),
                 onPressed: () {
-                  final overviewText = m.overview.isNotEmpty ? '\n\n${m.overview}' : '';
+                  final String yearText = m.year.isNotEmpty ? ' (${m.year})' : '';
+                  final String genreText = (_detail != null && _detail!.genres.isNotEmpty)
+                      ? '\n🎬 Genre: ${_detail!.genres.join(", ")}'
+                      : '';
+                  final String ratingText = m.rating > 0
+                      ? '\n⭐️ Rating: ${m.rating.toStringAsFixed(1)}/10'
+                      : '';
+                  final String durationText = (_detail != null && _detail!.runtimeStr.isNotEmpty)
+                      ? '\n⏱️ Duration: ${_detail!.runtimeStr}'
+                      : '';
+                  final String overviewText = m.overview.isNotEmpty
+                      ? '\n\n📝 Storyline:\n${m.overview}'
+                      : '';
+
+                  final String shareContent = 
+                      'Check out "${m.title}"$yearText on MovieNest!$genreText$ratingText$durationText\n\n'
+                      '🔗 Watch & Download here: https://www.movienest.app/movie?id=${m.id}$overviewText';
+
                   Share.share(
-                    'Check out "${m.title}" on Flixo!$overviewText',
+                    shareContent,
                     subject: 'Share "${m.title}"',
                   );
                 },

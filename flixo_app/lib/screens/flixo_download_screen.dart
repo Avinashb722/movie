@@ -110,7 +110,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
                 ),
                 Text(
-                  'FLIXO',
+                  'MovieNest',
                   style: TextStyle(
                     color: AppColors.accent,
                     fontSize: 28,
@@ -215,7 +215,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildInstallStep('2', 'Install the app package file and open it.'),
                   const SizedBox(height: 16),
-                  _buildInstallStep('3', 'Sign in using your FLIXO account credentials.'),
+                  _buildInstallStep('3', 'Sign in using your MovieNest account credentials.'),
                   const SizedBox(height: 16),
                   _buildInstallStep('4', 'Start streaming unlimited movie titles!'),
                 ],

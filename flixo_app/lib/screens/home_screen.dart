@@ -786,10 +786,15 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Row(
         children: [
-          RichText(
-            text: const TextSpan(
-              text: 'FLIXO',
-              style: TextStyle(color: AppColors.accent, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 2),
+          Image.asset(
+            'assets/header_logo.png',
+            height: 32,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => RichText(
+              text: const TextSpan(
+                text: 'MOVIENEST',
+                style: TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+              ),
             ),
           ),
           const Spacer(),

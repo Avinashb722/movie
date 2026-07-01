@@ -21,12 +21,18 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.movies.isEmpty) return const SizedBox(height: 220);
+    final itemCount = widget.movies.length + (widget.movies.isNotEmpty ? 1 : 0);
+    if (itemCount == 0) return const SizedBox(height: 220);
     return Column(
       children: [
         CarouselSlider.builder(
-          itemCount: widget.movies.length,
-          itemBuilder: (ctx, i, _) => _HeroItem(movie: widget.movies[i]),
+          itemCount: itemCount,
+          itemBuilder: (ctx, i, _) {
+            if (i == 0) {
+              return const _StaticBannerItem();
+            }
+            return _HeroItem(movie: widget.movies[i - 1]);
+          },
           options: CarouselOptions(
             height: 220,
             viewportFraction: 1.0,
@@ -38,7 +44,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         const SizedBox(height: 10),
         AnimatedSmoothIndicator(
           activeIndex: _current,
-          count: widget.movies.length.clamp(0, 8),
+          count: itemCount.clamp(0, 8),
           effect: const ExpandingDotsEffect(
             activeDotColor: AppColors.accent,
             dotColor: Color(0xFF444444),
@@ -48,6 +54,33 @@ class _HeroCarouselState extends State<HeroCarousel> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StaticBannerItem extends StatelessWidget {
+  const _StaticBannerItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.asset(
+          'assets/popup_banner.png',
+          width: double.infinity,
+          height: 220,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            height: 220,
+            color: AppColors.card,
+            child: const Center(
+              child: Icon(Icons.movie_creation_outlined, size: 50, color: Colors.white24),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

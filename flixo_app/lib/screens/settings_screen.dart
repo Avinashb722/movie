@@ -450,26 +450,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.help_outline,
               title: 'Help Center',
               onTap: () {
-                _showMessage('Help Center', 'For help and streaming guides, contact support@flixo.app.');
+                _showMessage('Help Center', 'For help and streaming guides, contact support@movienest.app.');
               },
             ),
             _SettingItem(
               icon: Icons.email_outlined,
               title: 'Contact Us',
               onTap: () {
-                _showMessage('Contact Us', 'Support Desk Email: support@flixo.app\nResponse timeframe: Within 24 hours.');
+                _showMessage('Contact Us', 'Support Desk Email: support@movienest.app\nResponse timeframe: Within 24 hours.');
               },
             ),
             _SettingItem(
               icon: Icons.info_outline,
               title: 'About Us',
               onTap: () {
-                _showMessage('FLIXO App', 'FLIXO is a premium catalog viewer powered by the TMDB database.');
+                _showMessage('MovieNest App', 'MovieNest is a premium catalog viewer powered by the TMDB database.');
               },
             ),
             _SettingItem(
               icon: Icons.download_for_offline_outlined,
-              title: 'Download FLIXO App',
+              title: 'Download MovieNest App',
               onTap: () {
                 Navigator.push(
                   context,
@@ -481,7 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 30),
           Center(
             child: Column(children: const [
-              Text('FLIXO v1.0.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              Text('MovieNest v1.0.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               SizedBox(height: 4),
               Text('Powered by TMDB + Free Streaming', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
             ]),

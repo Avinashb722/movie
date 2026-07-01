@@ -1,11 +1,11 @@
 {
-    "name": "flixo_app",
-    "short_name": "flixo_app",
+    "name": "MovieNest",
+    "short_name": "MovieNest",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F0F0F",
+    "theme_color": "#FFC107",
+    "description": "Watch unlimited movies, TV shows, and live channels on MovieNest.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
