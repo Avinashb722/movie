@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "build/web/**", "use": "@vercel/static" },
+    { "src": "vercel_proxy/api/index.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/.well-known/assetlinks.json", "dest": "build/web/assetlinks.json" },
+    { "src": "/downloads/(.*)", "dest": "build/web/downloads/$1" },
+    { "src": "/api(.*)", "dest": "vercel_proxy/api/index.js" },
+    { "src": "/(.*)", "dest": "build/web/index.html" }
+  ]
+}
