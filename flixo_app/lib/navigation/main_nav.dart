@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'dart:js' as js;
+import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
@@ -111,6 +115,121 @@ class _MainNavState extends State<MainNav> {
     }
   }
 
+  String _getTabTitle(int index) {
+    switch (index) {
+      case 0: return 'MovieNest - Home & Streaming Catalog';
+      case 1: return 'Discover Movies & Shows | MovieNest';
+      case 2: return 'Watch Live TV Channels Free | MovieNest';
+      case 3: return 'Downloads & Offline Sync | MovieNest';
+      case 4: return 'My Watchlist | MovieNest';
+      case 5: return 'Streaming History | MovieNest';
+      case 6: return 'MovieNest Blog & Movie News';
+      case 7: return 'User Profile | MovieNest';
+      case 8: return 'Account Settings | MovieNest';
+      case 9: return 'Download MovieNest Native Apps';
+      default: return 'MovieNest - Stream Movies & Live TV';
+    }
+  }
+
+  String _getTabDesc(int index) {
+    switch (index) {
+      case 0: return 'Watch and stream the latest popular movies, TV series, anime, and live TV channels completely free.';
+      case 1: return 'Explore and discover new release movie catalogs, categories, filters, and similar title recommendations.';
+      case 2: return 'Watch active live TV channels, streaming events, and live broadcast lists in real-time.';
+      default: return 'MovieNest is a premium streaming catalog viewer and application powered by the TMDB database.';
+    }
+  }
+
+  void _updateWebTabSeo(int index) {
+    if (!kIsWeb) return;
+    try {
+      final path = _indexToPath(index);
+      final canonicalUrl = 'https://www.movienest.app$path';
+      final title = _getTabTitle(index);
+      final desc = _getTabDesc(index);
+
+      final globalSchema = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.movienest.app/#organization",
+            "name": "MovieNest",
+            "url": "https://www.movienest.app",
+            "logo": "https://www.movienest.app/icons/Icon-512.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.movienest.app/#website",
+            "url": "https://www.movienest.app",
+            "name": "MovieNest",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.movienest.app/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      };
+
+      js.context.callMethod('updateSeoMeta', [
+        title,
+        desc,
+        canonicalUrl,
+        'https://www.movienest.app/icons/Icon-512.png',
+        jsonEncode(globalSchema),
+      ]);
+    } catch (_) {}
+  }
+
+  Future<void> _checkAppUpdates() async {
+    try {
+      final res = await http.get(Uri.parse('https://www.movienest.app/version.json')).timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return;
+      final serverData = json.decode(res.body);
+
+      final packageInfo = await PackageInfo.fromPlatform();
+      final localVersion = packageInfo.version;
+
+      if (localVersion != serverData['latest_version']) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: !(serverData['force_update'] as bool? ?? false),
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Update Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text(
+              'A new version (${serverData['latest_version']}) of MovieNest is available. Would you like to update now?',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              if (!(serverData['force_update'] as bool? ?? false))
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Later', style: TextStyle(color: Colors.white54)),
+                ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  try {
+                    launchUrl(Uri.parse(serverData['download_url'] as String? ?? 'https://www.movienest.app'), mode: LaunchMode.externalApplication);
+                  } catch (_) {}
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Update Now', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
   void _handleInitialUrlRoute() {
     try {
       final uri = Uri.base;
@@ -209,6 +328,7 @@ class _MainNavState extends State<MainNav> {
             _idx = initialIdx;
           });
           _updateBrowserUrl(initialIdx);
+          _updateWebTabSeo(initialIdx);
           
           // Execute deep-linking for direct movie links
           try {
@@ -235,6 +355,11 @@ class _MainNavState extends State<MainNav> {
         });
       });
     }
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAppUpdates();
+      });
+    }
   }
 
   @override
@@ -250,6 +375,7 @@ class _MainNavState extends State<MainNav> {
       });
       if (kIsWeb) {
         _updateBrowserUrl(_idx);
+        _updateWebTabSeo(_idx);
       }
     }
   }

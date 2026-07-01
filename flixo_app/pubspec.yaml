@@ -36,6 +36,7 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   share_plus: ^13.2.0
   app_links: ^6.1.1
+  package_info_plus: ^10.1.0
 
 
 dev_dependencies:
