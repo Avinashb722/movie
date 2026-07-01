@@ -7,12 +7,12 @@ class FlixoDownloadScreen extends StatelessWidget {
   const FlixoDownloadScreen({super.key});
 
   // Separate App Download URLs
-  static const String androidUrl = 'https://flixo.app/downloads/android.apk';
-  static const String iosUrl = 'https://apps.apple.com/app/flixo-app';
-  static const String webUrl = 'https://flixo.app/';
-  static const String tvUrl = 'https://flixo.app/downloads/flixo-tv.apk';
-  static const String windowsUrl = 'https://flixo.app/downloads/flixo-setup.exe';
-  static const String macosUrl = 'https://flixo.app/downloads/flixo.dmg';
+  static const String androidUrl = 'https://www.movienest.app/downloads/movienest.apk';
+  static const String iosUrl = 'https://apps.apple.com/app/movienest-app';
+  static const String webUrl = 'https://www.movienest.app/';
+  static const String tvUrl = 'https://www.movienest.app/downloads/movienest-tv.apk';
+  static const String windowsUrl = 'https://www.movienest.app/downloads/movienest-setup.exe';
+  static const String macosUrl = 'https://www.movienest.app/downloads/movienest.dmg';
 
   Future<void> _launchURL(String urlString) async {
     try {
