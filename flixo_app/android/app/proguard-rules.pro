@@ -27,3 +27,4 @@
 # Don't warn about missing dependencies in compiled libraries
 -dontwarn org.libtorrent4j.**
 -dontwarn com.google.android.exoplayer2.**
+-dontwarn com.google.android.play.core.**

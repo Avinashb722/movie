@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'dart:js' as js;
 import 'dart:convert';
+import '../utils/seo_helper.dart'
+    if (dart.library.js) '../utils/seo_helper_web.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
@@ -172,13 +174,13 @@ class _MainNavState extends State<MainNav> {
         ]
       };
 
-      js.context.callMethod('updateSeoMeta', [
+      updateWebSeo(
         title,
         desc,
         canonicalUrl,
         'https://www.movienest.app/icons/Icon-512.png',
         jsonEncode(globalSchema),
-      ]);
+      );
     } catch (_) {}
   }
 

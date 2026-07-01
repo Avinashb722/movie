@@ -1,6 +1,9 @@
 import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import '../utils/seo_helper.dart'
+    if (dart.library.js) '../utils/seo_helper_web.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
@@ -62,12 +65,49 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       SystemNavigator.routeInformationUpdated(
         location: '/movie/$titleSlug',
       );
-      SystemChrome.setApplicationSwitcherDescription(
-        ApplicationSwitcherDescription(
-          label: 'MovieNest - ${widget.movie.title}',
-        ),
-      );
+      _updateMovieSeo(widget.movie, null);
     }
+  }
+
+  void _updateMovieSeo(Movie m, MovieDetail? d) {
+    if (!kIsWeb) return;
+    try {
+      final titleSlug = m.title
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\s-]'), '')
+          .replaceAll(RegExp(r'\s+'), '-');
+          
+      final canonicalUrl = 'https://www.movienest.app/movie/$titleSlug';
+      final year = m.releaseDate.isNotEmpty ? ' (${m.releaseDate.split("-").first})' : '';
+      final title = '${m.title}$year - Watch Details | MovieNest';
+      final description = 'Watch ${m.title}, cast, rating, overview, trailers and recommendations on MovieNest.';
+      
+      final genresList = d?.genres ?? [];
+
+      final movieSchema = {
+        "@context": "https://schema.org",
+        "@type": "Movie",
+        "name": m.title,
+        "image": m.backdropUrl.isNotEmpty ? m.backdropUrl : 'https://www.movienest.app/icons/Icon-512.png',
+        "description": m.overview,
+        "datePublished": m.releaseDate,
+        "genre": genresList,
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": m.rating.toStringAsFixed(1),
+          "bestRating": "10",
+          "ratingCount": "100"
+        }
+      };
+
+      updateWebSeo(
+        title,
+        description,
+        canonicalUrl,
+        m.backdropUrl.isNotEmpty ? m.backdropUrl : 'https://www.movienest.app/icons/Icon-512.png',
+        jsonEncode(movieSchema),
+      );
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -76,11 +116,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       TmdbService.getSimilar(widget.movie.id),
     ]);
     if (mounted) {
+      final detail = results[0] as MovieDetail?;
       setState(() {
-        _detail  = results[0] as MovieDetail?;
+        _detail  = detail;
         _similar = results[1] as List<Movie>;
         _loading = false;
       });
+      if (kIsWeb) {
+        _updateMovieSeo(widget.movie, detail);
+      }
     }
   }
 
