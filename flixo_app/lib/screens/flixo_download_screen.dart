@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
-// Brand palette matching the user reference
+// ---------------------------------------------------------------------------
+// Brand palette — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class Brand {
   static const ink = Color(0xFF0A0A0F);
   static const red = Color(0xFFE0201B);
@@ -13,6 +14,9 @@ class Brand {
   static const muted = Color(0xFFB4B4BE);
 }
 
+// ---------------------------------------------------------------------------
+// FlixoDownloadScreen (Exact copy of HeroScreen)
+// ---------------------------------------------------------------------------
 class FlixoDownloadScreen extends StatelessWidget {
   const FlixoDownloadScreen({super.key});
 
@@ -71,7 +75,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxWidth: isWide ? 800 : double.infinity,
+                      maxWidth: isWide ? 640 : double.infinity,
                     ),
                     child: const _HeroContent(),
                   ),
@@ -85,6 +89,9 @@ class FlixoDownloadScreen extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Background — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _CinematicBackground extends StatelessWidget {
   const _CinematicBackground();
 
@@ -106,126 +113,43 @@ class _CinematicBackground extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Hero content column — EXACT copy + Installation guides appended
+// ---------------------------------------------------------------------------
 class _HeroContent extends StatelessWidget {
   const _HeroContent();
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isWide = width >= 900;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        const _Logo(),
-        const SizedBox(height: 24),
-        const _Wordmark(),
-        const SizedBox(height: 16),
-        const _Tagline(),
-        const SizedBox(height: 28),
-        const _CategoryBar(),
-        const SizedBox(height: 20),
-        const _SubTagline(),
-        const SizedBox(height: 32),
-        const _DownloadHeading(),
-        const SizedBox(height: 16),
-        const _DownloadGrid(),
-        const SizedBox(height: 48),
-        
-        // Step by step installation guide header
-        Row(
-          children: [
-            Container(
-              width: 32,
-              height: 2,
-              color: Brand.orange,
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'INSTALLATION GUIDE',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Divider(color: Brand.stroke, thickness: 1),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        
-        // Installation instructions columns
-        if (isWide)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Expanded(
-                child: _InstallGuide(
-                  title: 'Windows Setup Guide',
-                  icon: Icons.window,
-                  color: Color(0xFF3DA9FC),
-                  steps: [
-                    'Click the WINDOWS button above to download "movienest-setup.exe".',
-                    'Double-click the installer to launch setup.',
-                    'If Windows Defender displays a prompt, click "More Info" and then choose "Run Anyway".',
-                    'The setup completes in seconds and places a launcher icon on your desktop.',
-                  ],
-                ),
-              ),
-              SizedBox(width: 24),
-              Expanded(
-                child: _InstallGuide(
-                  title: 'Android & TV Setup Guide',
-                  icon: Icons.android,
-                  color: Color(0xFF3DDC84),
-                  steps: [
-                    'Click the ANDROID button to download the "movienest.apk" file.',
-                    'Open the downloaded file from your browser or File Manager app.',
-                    'Enable "Install from Unknown Sources" inside your system settings if prompted.',
-                    'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
-                  ],
-                ),
-              ),
-            ],
-          )
-        else
-          Column(
-            children: const [
-              _InstallGuide(
-                title: 'Windows Setup Guide',
-                icon: Icons.window,
-                color: Color(0xFF3DA9FC),
-                steps: [
-                  'Click the WINDOWS button above to download "movienest-setup.exe".',
-                  'Double-click the installer to launch setup.',
-                  'If Windows Defender displays a warning, click "More Info" and then choose "Run Anyway".',
-                  'The setup completes in seconds and places a launcher icon on your desktop.',
-                ],
-              ),
-              SizedBox(height: 16),
-              _InstallGuide(
-                title: 'Android & TV Setup Guide',
-                icon: Icons.android,
-                color: Color(0xFF3DDC84),
-                steps: [
-                  'Click the ANDROID button to download the "movienest.apk" file.',
-                  'Open the downloaded file from your browser or File Manager app.',
-                  'Enable "Install from Unknown Sources" inside your system settings if prompted.',
-                  'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
-                ],
-              ),
-            ],
-          ),
+      children: const [
+        _Logo(),
+        SizedBox(height: 24),
+        _Wordmark(),
+        SizedBox(height: 16),
+        _Tagline(),
+        SizedBox(height: 28),
+        _CategoryBar(),
+        SizedBox(height: 20),
+        _SubTagline(),
+        SizedBox(height: 32),
+        _DownloadHeading(),
+        SizedBox(height: 16),
+        _DownloadGrid(),
+        SizedBox(height: 48),
+        _InstallHeading(),
+        SizedBox(height: 20),
+        _InstallGuidesSection(),
       ],
     );
   }
 }
 
+// ---------------------------------------------------------------------------
+// Logo mark — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _Logo extends StatelessWidget {
   const _Logo();
 
@@ -260,6 +184,9 @@ class _Logo extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Wordmark — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _Wordmark extends StatelessWidget {
   const _Wordmark();
 
@@ -283,6 +210,9 @@ class _Wordmark extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Tagline — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _Tagline extends StatelessWidget {
   const _Tagline();
 
@@ -306,6 +236,9 @@ class _Tagline extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Category bar — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _CategoryBar extends StatelessWidget {
   const _CategoryBar();
 
@@ -374,6 +307,9 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sub-tagline — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _SubTagline extends StatelessWidget {
   const _SubTagline();
 
@@ -409,6 +345,9 @@ class _SubTagline extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Download heading — EXACT copy from reference
+// ---------------------------------------------------------------------------
 class _DownloadHeading extends StatelessWidget {
   const _DownloadHeading();
 
@@ -441,6 +380,9 @@ class _DownloadHeading extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Download grid — EXACT copy from reference + Correct live URLs
+// ---------------------------------------------------------------------------
 class _DownloadGrid extends StatelessWidget {
   const _DownloadGrid();
 
@@ -480,6 +422,9 @@ class _Platform {
   final String url;
 }
 
+// ---------------------------------------------------------------------------
+// Download button — EXACT copy from reference + URL Launching action
+// ---------------------------------------------------------------------------
 class _DownloadButton extends StatelessWidget {
   const _DownloadButton({required this.platform});
 
@@ -588,6 +533,114 @@ class _DownloadButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Installation instructions section
+// ---------------------------------------------------------------------------
+class _InstallHeading extends StatelessWidget {
+  const _InstallHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 2,
+          color: Brand.orange,
+        ),
+        const SizedBox(width: 12),
+        const Text(
+          'INSTALLATION GUIDE',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+            fontSize: 14,
+            fontFamily: 'Roboto',
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Divider(color: Brand.stroke, thickness: 1),
+        ),
+      ],
+    );
+  }
+}
+
+class _InstallGuidesSection extends StatelessWidget {
+  const _InstallGuidesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 900;
+
+    if (isWide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Expanded(
+            child: _InstallGuide(
+              title: 'Windows Setup Guide',
+              icon: Icons.window,
+              color: Color(0xFF3DA9FC),
+              steps: [
+                'Click the WINDOWS button above to download "movienest-setup.exe".',
+                'Double-click the installer to launch setup.',
+                'If Windows Defender displays a prompt, click "More Info" and then choose "Run Anyway".',
+                'The setup completes in seconds and places a launcher icon on your desktop.',
+              ],
+            ),
+          ),
+          SizedBox(width: 24),
+          Expanded(
+            child: _InstallGuide(
+              title: 'Android & TV Setup Guide',
+              icon: Icons.android,
+              color: Color(0xFF3DDC84),
+              steps: [
+                'Click the ANDROID button to download the "movienest.apk" file.',
+                'Open the downloaded file from your browser or File Manager app.',
+                'Enable "Install from Unknown Sources" inside your system settings if prompted.',
+                'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: const [
+        _InstallGuide(
+          title: 'Windows Setup Guide',
+          icon: Icons.window,
+          color: Color(0xFF3DA9FC),
+          steps: [
+            'Click the WINDOWS button above to download "movienest-setup.exe".',
+            'Double-click the installer to launch setup.',
+            'If Windows Defender displays a warning, click "More Info" and then choose "Run Anyway".',
+            'The setup completes in seconds and places a launcher icon on your desktop.',
+          ],
+        ),
+        SizedBox(height: 16),
+        _InstallGuide(
+          title: 'Android & TV Setup Guide',
+          icon: Icons.android,
+          color: Color(0xFF3DDC84),
+          steps: [
+            'Click the ANDROID button to download the "movienest.apk" file.',
+            'Open the downloaded file from your browser or File Manager app.',
+            'Enable "Install from Unknown Sources" inside your system settings if prompted.',
+            'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
+          ],
+        ),
+      ],
     );
   }
 }
