@@ -8,6 +8,7 @@ import '../utils/seo_helper.dart'
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
@@ -295,6 +296,30 @@ class _MainNavState extends State<MainNav> {
     }
   }
 
+  Future<void> _checkAndShowWebDownloadPopup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      final todayStr = "${now.year}-${now.month}-${now.day}";
+      final lastShowDate = prefs.getString('last_popup_show_date') ?? '';
+      int showCount = prefs.getInt('popup_show_count') ?? 0;
+
+      if (lastShowDate != todayStr) {
+        showCount = 0;
+      }
+
+      if (showCount < 2) {
+        showCount++;
+        await prefs.setString('last_popup_show_date', todayStr);
+        await prefs.setInt('popup_show_count', showCount);
+        _showWebDownloadPopup();
+      }
+    } catch (e) {
+      debugPrint('Error checking web download popup limit: $e');
+      _showWebDownloadPopup();
+    }
+  }
+
   void _showWebDownloadPopup() {
     showDialog(
       context: context,
@@ -382,7 +407,7 @@ class _MainNavState extends State<MainNav> {
         } catch (_) {}
 
         if (!isMovieLink) {
-          _showWebDownloadPopup();
+          _checkAndShowWebDownloadPopup();
         }
       });
     }

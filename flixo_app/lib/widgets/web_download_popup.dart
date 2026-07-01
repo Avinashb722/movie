@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Brand {
   static const ink = Color(0xFF0A0A0F);
@@ -320,10 +321,10 @@ class _DownloadGrid extends StatelessWidget {
   const _DownloadGrid();
 
   static const _platforms = <_Platform>[
-    _Platform(Icons.android, 'ANDROID', Color(0xFF3DDC84)),
-    _Platform(Icons.apple, 'IOS', Colors.white),
-    _Platform(Icons.window, 'WINDOWS', Color(0xFF3DA9FC)),
-    _Platform(Icons.live_tv, 'ANDROID TV', Color(0xFF3DDC84)),
+    _Platform(Icons.android, 'ANDROID', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest.apk'),
+    _Platform(Icons.apple, 'IOS', Colors.white, ''),
+    _Platform(Icons.window, 'WINDOWS', Color(0xFF3DA9FC), 'https://www.movienest.app/downloads/movienest-setup.exe'),
+    _Platform(Icons.live_tv, 'ANDROID TV', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest-tv.apk'),
   ];
 
   @override
@@ -346,10 +347,11 @@ class _DownloadGrid extends StatelessWidget {
 }
 
 class _Platform {
-  const _Platform(this.icon, this.label, this.color);
+  const _Platform(this.icon, this.label, this.color, this.url);
   final IconData icon;
   final String label;
   final Color color;
+  final String url;
 }
 
 class _DownloadButton extends StatelessWidget {
@@ -378,7 +380,22 @@ class _DownloadButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           hoverColor: Colors.white.withOpacity(0.06),
           splashColor: platform.color.withOpacity(0.12),
-          onTap: () {},
+          onTap: () async {
+            if (platform.url.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('iOS app is coming soon! Use our Web App for now.', style: TextStyle(color: Colors.white)),
+                  backgroundColor: Color(0xFF161616),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              return;
+            }
+            final uri = Uri.parse(platform.url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
