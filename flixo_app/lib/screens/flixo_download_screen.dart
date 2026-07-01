@@ -1,16 +1,492 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+
+// Brand palette matching the user reference
+class Brand {
+  static const ink = Color(0xFF0A0A0F);
+  static const red = Color(0xFFE0201B);
+  static const orange = Color(0xFFF5951F);
+  static const surface = Color(0x14FFFFFF); // white @ ~8%
+  static const stroke = Color(0x1FFFFFFF); // white @ ~12%
+  static const muted = Color(0xFFB4B4BE);
+}
 
 class FlixoDownloadScreen extends StatelessWidget {
   const FlixoDownloadScreen({super.key});
 
-  static const String androidUrl = 'https://www.movienest.app/downloads/movienest.apk';
-  static const String windowsUrl = 'https://www.movienest.app/downloads/movienest-setup.exe';
-  static const String tvUrl = 'https://www.movienest.app/downloads/movienest-tv.apk';
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Brand.ink,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Cinematic backdrop
+          const _CinematicBackground(),
+          // Readability gradient — adapts to viewport width
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 900;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: const [
+                      Brand.ink,
+                      Color(0xE60A0A0F),
+                      Color(0x990A0A0F),
+                      Colors.transparent,
+                    ],
+                    stops: isWide
+                        ? const [0.0, 0.35, 0.6, 1.0]
+                        : const [0.0, 0.55, 0.85, 1.0],
+                  ),
+                ),
+              );
+            },
+          ),
+          // Extra bottom scrim so download buttons stay legible
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.center,
+                colors: [Color(0xCC0A0A0F), Colors.transparent],
+              ),
+            ),
+            child: SizedBox.expand(),
+          ),
+          // Content
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 900;
+                return SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isWide ? 64 : 24,
+                    vertical: 40,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isWide ? 800 : double.infinity,
+                    ),
+                    child: const _HeroContent(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-  Future<void> _launchURL(BuildContext context, String urlString) async {
-    if (urlString.isEmpty) {
+class _CinematicBackground extends StatelessWidget {
+  const _CinematicBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Brand.ink,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Image.asset(
+          'assets/cinematic_bg.png',
+          fit: BoxFit.cover,
+          height: double.infinity,
+          alignment: Alignment.centerRight,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroContent extends StatelessWidget {
+  const _HeroContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 900;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _Logo(),
+        const SizedBox(height: 24),
+        const _Wordmark(),
+        const SizedBox(height: 16),
+        const _Tagline(),
+        const SizedBox(height: 28),
+        const _CategoryBar(),
+        const SizedBox(height: 20),
+        const _SubTagline(),
+        const SizedBox(height: 32),
+        const _DownloadHeading(),
+        const SizedBox(height: 16),
+        const _DownloadGrid(),
+        const SizedBox(height: 48),
+        
+        // Step by step installation guide header
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 2,
+              color: Brand.orange,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'INSTALLATION GUIDE',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Divider(color: Brand.stroke, thickness: 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        // Installation instructions columns
+        if (isWide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Expanded(
+                child: _InstallGuide(
+                  title: 'Windows Setup Guide',
+                  icon: Icons.window,
+                  color: Color(0xFF3DA9FC),
+                  steps: [
+                    'Click the WINDOWS button above to download "movienest-setup.exe".',
+                    'Double-click the installer to launch setup.',
+                    'If Windows Defender displays a prompt, click "More Info" and then choose "Run Anyway".',
+                    'The setup completes in seconds and places a launcher icon on your desktop.',
+                  ],
+                ),
+              ),
+              SizedBox(width: 24),
+              Expanded(
+                child: _InstallGuide(
+                  title: 'Android & TV Setup Guide',
+                  icon: Icons.android,
+                  color: Color(0xFF3DDC84),
+                  steps: [
+                    'Click the ANDROID button to download the "movienest.apk" file.',
+                    'Open the downloaded file from your browser or File Manager app.',
+                    'Enable "Install from Unknown Sources" inside your system settings if prompted.',
+                    'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
+                  ],
+                ),
+              ),
+            ],
+          )
+        else
+          Column(
+            children: const [
+              _InstallGuide(
+                title: 'Windows Setup Guide',
+                icon: Icons.window,
+                color: Color(0xFF3DA9FC),
+                steps: [
+                  'Click the WINDOWS button above to download "movienest-setup.exe".',
+                  'Double-click the installer to launch setup.',
+                  'If Windows Defender displays a warning, click "More Info" and then choose "Run Anyway".',
+                  'The setup completes in seconds and places a launcher icon on your desktop.',
+                ],
+              ),
+              SizedBox(height: 16),
+              _InstallGuide(
+                title: 'Android & TV Setup Guide',
+                icon: Icons.android,
+                color: Color(0xFF3DDC84),
+                steps: [
+                  'Click the ANDROID button to download the "movienest.apk" file.',
+                  'Open the downloaded file from your browser or File Manager app.',
+                  'Enable "Install from Unknown Sources" inside your system settings if prompted.',
+                  'For TVs: copy "movienest-tv.apk" to a USB flash drive and open it using a TV file explorer app.',
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _Logo extends StatelessWidget {
+  const _Logo();
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size.width >= 900 ? 96.0 : 76.0;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.24),
+        boxShadow: [
+          BoxShadow(
+            color: Brand.red.withOpacity(0.35),
+            blurRadius: 40,
+            spreadRadius: -8,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.24),
+        child: Image.asset(
+          'assets/movienest_icon.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: Brand.red,
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size.width >= 900 ? 68.0 : 44.0;
+    return RichText(
+      text: TextSpan(
+        style: TextStyle(
+          fontSize: size,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1,
+          height: 1.0,
+        ),
+        children: const [
+          TextSpan(text: 'MOVIE', style: TextStyle(color: Colors.white, fontFamily: 'Roboto')),
+          TextSpan(text: 'NEST', style: TextStyle(color: Brand.red, fontFamily: 'Roboto')),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tagline extends StatelessWidget {
+  const _Tagline();
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 4,
+    );
+    return RichText(
+      text: const TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: 'STREAM. ', style: TextStyle(color: Colors.white, fontFamily: 'Roboto')),
+          TextSpan(text: 'DISCOVER. ', style: TextStyle(color: Brand.red, fontFamily: 'Roboto')),
+          TextSpan(text: 'ENJOY.', style: TextStyle(color: Brand.orange, fontFamily: 'Roboto')),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryBar extends StatelessWidget {
+  const _CategoryBar();
+
+  static const _items = <(IconData, String)>[
+    (Icons.play_circle_fill, 'MOVIES'),
+    (Icons.tv, 'SHOWS'),
+    (Icons.face, 'ANIME'),
+    (Icons.movie_creation, 'SHORTS'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Brand.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Brand.stroke),
+      ),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final (icon, label) in _items)
+            _CategoryChip(icon: icon, label: label),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: Brand.red,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 18, color: Colors.white),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+            fontSize: 15,
+            fontFamily: 'Roboto',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SubTagline extends StatelessWidget {
+  const _SubTagline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Brand.red, width: 2),
+          ),
+          child: const Icon(Icons.play_arrow, size: 16, color: Brand.red),
+        ),
+        const SizedBox(width: 10),
+        const Flexible(
+          child: Text(
+            'UNLIMITED ENTERTAINMENT, ANYTIME, ANYWHERE.',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+              fontSize: 14,
+              fontFamily: 'Roboto',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownloadHeading extends StatelessWidget {
+  const _DownloadHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 2,
+          color: Brand.orange,
+        ),
+        const SizedBox(width: 12),
+        const Text(
+          'DOWNLOAD NOW',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 3,
+            fontSize: 16,
+            fontFamily: 'Roboto',
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Divider(color: Brand.stroke, thickness: 1),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownloadGrid extends StatelessWidget {
+  const _DownloadGrid();
+
+  static const _platforms = <_Platform>[
+    _Platform(Icons.android, 'ANDROID', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest.apk'),
+    _Platform(Icons.apple, 'IOS', Colors.white, ''),
+    _Platform(Icons.window, 'WINDOWS', Color(0xFF3DA9FC), 'https://www.movienest.app/downloads/movienest-setup.exe'),
+    _Platform(Icons.live_tv, 'ANDROID TV', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest-tv.apk'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 560;
+        final cols = isWide ? 4 : 2;
+        final spacing = 12.0;
+        final itemW = (constraints.maxWidth - spacing * (cols - 1)) / cols;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final p in _platforms)
+              SizedBox(width: itemW, child: _DownloadButton(platform: p)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Platform {
+  const _Platform(this.icon, this.label, this.color, this.url);
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String url;
+}
+
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.platform});
+
+  final _Platform platform;
+
+  Future<void> _launchURL(BuildContext context) async {
+    if (platform.url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('iOS app is coming soon! Use our Web App for now.', style: TextStyle(color: Colors.white)),
@@ -21,289 +497,91 @@ class FlixoDownloadScreen extends StatelessWidget {
       return;
     }
     try {
-      final uri = Uri.parse(urlString);
+      final uri = Uri.parse(platform.url);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      debugPrint('Could not launch $urlString: $e');
+      debugPrint('Could not launch ${platform.url}: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isDesktop = size.width > 768;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Custom Header Banner matching popup background style
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: isDesktop ? 60 : 36),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E0E15),
-                border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.workspace_premium_rounded, color: AppColors.accent, size: 14),
-                            SizedBox(width: 6),
-                            Text(
-                              'OFFICIAL APPS',
-                              style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Download ',
-                            style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5),
-                          ),
-                          Text(
-                            'MovieNest',
-                            style: TextStyle(
-                              color: AppColors.accent,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              shadows: [
-                                Shadow(
-                                  color: AppColors.accent.withOpacity(0.3),
-                                  blurRadius: 15,
-                                )
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Experience clean, ad-free streaming on your phone, TV, or PC. Choose your platform below to get started.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            
-            // Main content block
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Grid of download buttons
-                      isDesktop
-                          ? Row(
-                              children: [
-                                Expanded(child: _buildDownloadCard(context, Icons.android, 'ANDROID MOBILE', 'Download APK', Color(0xFF3DDC84), androidUrl)),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildDownloadCard(context, Icons.apple, 'APPLE IOS', 'Coming Soon', Colors.white, '')),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildDownloadCard(context, Icons.window, 'WINDOWS PC', 'Download EXE', Color(0xFF3DA9FC), windowsUrl)),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildDownloadCard(context, Icons.live_tv, 'ANDROID TV', 'Download APK', Color(0xFF3DDC84), tvUrl)),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                _buildDownloadCard(context, Icons.android, 'ANDROID MOBILE', 'Download APK', Color(0xFF3DDC84), androidUrl),
-                                const SizedBox(height: 12),
-                                _buildDownloadCard(context, Icons.apple, 'APPLE IOS', 'Coming Soon', Colors.white, ''),
-                                const SizedBox(height: 12),
-                                _buildDownloadCard(context, Icons.window, 'WINDOWS PC', 'Download EXE', Color(0xFF3DA9FC), windowsUrl),
-                                const SizedBox(height: 12),
-                                _buildDownloadCard(context, Icons.live_tv, 'ANDROID TV', 'Download APK', Color(0xFF3DDC84), tvUrl),
-                              ],
-                            ),
-                      
-                      const SizedBox(height: 48),
-                      
-                      // Title: How to install
-                      const Text(
-                        'HOW TO INSTALL & SET UP',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 80,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(1.5),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Platform Step-by-Step guides
-                      if (isDesktop)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildInstallGuide(
-                                'Windows Installation Guide',
-                                Icons.window,
-                                Color(0xFF3DA9FC),
-                                [
-                                  'Click the "Download EXE" button under the Windows PC section.',
-                                  'Open the downloaded installer "movienest-setup.exe".',
-                                  'If Windows Defender displays a warning (due to new package build signature), click "More Info" and then choose "Run Anyway".',
-                                  'Complete setup. The app will launch with a shortcut icon on your desktop.',
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _buildInstallGuide(
-                                'Android / TV Installation Guide',
-                                Icons.android,
-                                Color(0xFF3DDC84),
-                                [
-                                  'Click download to fetch the setup APK on your device.',
-                                  'Open the downloaded file from your Notifications or File Manager app.',
-                                  'If prompted, toggle "Allow Installation from Unknown Sources" inside your system settings.',
-                                  'For Smart TVs: transfer the APK to a USB drive or use the "Send Files to TV" app to install it wirelessly.',
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        Column(
-                          children: [
-                            _buildInstallGuide(
-                              'Windows Installation Guide',
-                              Icons.window,
-                              Color(0xFF3DA9FC),
-                              [
-                                'Click the "Download EXE" button under the Windows PC section.',
-                                'Open the downloaded installer "movienest-setup.exe".',
-                                'If Windows Defender displays a warning (due to new package build signature), click "More Info" and then choose "Run Anyway".',
-                                'Complete setup. The app will launch with a shortcut icon on your desktop.',
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            _buildInstallGuide(
-                              'Android / TV Installation Guide',
-                              Icons.android,
-                              Color(0xFF3DDC84),
-                              [
-                                'Click download to fetch the setup APK on your device.',
-                                'Open the downloaded file from your Notifications or File Manager app.',
-                                'If prompted, toggle "Allow Installation from Unknown Sources" inside your system settings.',
-                                'For Smart TVs: transfer the APK to a USB drive or use the "Send Files to TV" app to install it wirelessly.',
-                              ],
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDownloadCard(BuildContext context, IconData icon, String label, String actionText, Color color, String url) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF111118),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06), width: 1.5),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          hoverColor: Colors.white.withOpacity(0.03),
-          splashColor: color.withOpacity(0.12),
-          onTap: () => _launchURL(context, url),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+          borderRadius: BorderRadius.circular(14),
+          hoverColor: Colors.white.withOpacity(0.06),
+          splashColor: platform.color.withOpacity(0.12),
+          onTap: () => _launchURL(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.10),
+                  Colors.white.withOpacity(0.04),
+                ],
+              ),
+              border: Border.all(color: Colors.white.withOpacity(0.14)),
+            ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: color.withOpacity(0.1),
+                    color: platform.color.withOpacity(0.14),
                   ),
-                  child: Icon(icon, color: color, size: 22),
+                  child: Icon(platform.icon, color: platform.color, size: 24),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        label,
+                        platform.label,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
                           letterSpacing: 0.5,
+                          fontFamily: 'Roboto',
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        actionText,
+                      const SizedBox(height: 2),
+                      const Text(
+                        'DOWNLOAD',
                         style: TextStyle(
-                          color: url.isEmpty ? Colors.white38 : AppColors.accent,
-                          fontWeight: FontWeight.w700,
+                          color: Brand.muted,
+                          fontWeight: FontWeight.w600,
                           fontSize: 10,
-                          letterSpacing: 0.5,
+                          letterSpacing: 1.5,
+                          fontFamily: 'Roboto',
                         ),
                       ),
                     ],
                   ),
-                ),
-                Icon(
-                  url.isEmpty ? Icons.lock_clock_outlined : Icons.arrow_forward_ios_rounded,
-                  color: Colors.white24,
-                  size: 14,
                 ),
               ],
             ),
@@ -312,15 +590,30 @@ class FlixoDownloadScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildInstallGuide(String title, IconData icon, Color color, List<String> steps) {
+class _InstallGuide extends StatelessWidget {
+  const _InstallGuide({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.steps,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF111118),
+        color: Brand.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        border: Border.all(color: Brand.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,6 +629,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
+                    fontFamily: 'Roboto',
                   ),
                 ),
               ),
@@ -363,6 +657,7 @@ class FlixoDownloadScreen extends StatelessWidget {
                           color: color,
                           fontWeight: FontWeight.w800,
                           fontSize: 10,
+                          fontFamily: 'Roboto',
                         ),
                       ),
                     ),
@@ -372,9 +667,10 @@ class FlixoDownloadScreen extends StatelessWidget {
                     child: Text(
                       steps[index],
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: Brand.muted,
                         fontSize: 12,
                         height: 1.4,
+                        fontFamily: 'Roboto',
                       ),
                     ),
                   ),
