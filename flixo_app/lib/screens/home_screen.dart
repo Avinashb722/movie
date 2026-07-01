@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../models/movie.dart';
 import '../services/tmdb_service.dart';
 import '../services/home_cache_service.dart';
@@ -54,6 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _bootstrap();
     homeCategoryNotifier.addListener(_onCategoryNotifierChanged);
     mainNavTabNotifier.addListener(_onMainNavTabChanged);
+    if (kIsWeb) {
+      SystemChrome.setApplicationSwitcherDescription(
+        const ApplicationSwitcherDescription(label: 'MovieNest - Home & Streaming Catalog'),
+      );
+    }
   }
 
   @override

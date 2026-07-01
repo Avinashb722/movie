@@ -18,7 +18,7 @@ android {
 
 
     defaultConfig {
-        applicationId = "com.flixo.app"
+        applicationId = "com.movienest.app"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -62,6 +62,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       SystemNavigator.routeInformationUpdated(
         location: '/movie/$titleSlug',
       );
+      SystemChrome.setApplicationSwitcherDescription(
+        ApplicationSwitcherDescription(
+          label: 'MovieNest - ${widget.movie.title}',
+        ),
+      );
     }
   }
 

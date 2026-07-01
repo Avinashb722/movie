@@ -37,6 +37,27 @@ void main() async {
     systemNavigationBarColor: Color(0xFF0F0F0F),
     systemNavigationBarIconBrightness: Brightness.light,
   ));
+
+  // Graceful Error Boundary Fallback for production builds
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF0C0C0D),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.error_outline_rounded, color: Colors.white24, size: 48),
+            SizedBox(height: 12),
+            Text(
+              'An unexpected error occurred.',
+              style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  };
+
   runApp(const FlixoApp());
 }
 
