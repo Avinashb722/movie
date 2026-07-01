@@ -11,6 +11,8 @@ class DefaultFirebaseOptions {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
+      case TargetPlatform.iOS:
+        return ios;
       case TargetPlatform.windows:
         return web;
       default:
@@ -35,5 +37,14 @@ class DefaultFirebaseOptions {
     messagingSenderId: '82684853945',
     projectId: 'movie-de00a',
     storageBucket: 'movie-de00a.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCXx9Q5e3r8WiwDWgagiv3oPshMwN35sG8',
+    appId: '1:82684853945:ios:d30350cf9b7d5d24602568',
+    messagingSenderId: '82684853945',
+    projectId: 'movie-de00a',
+    storageBucket: 'movie-de00a.firebasestorage.app',
+    iosBundleId: 'com.movienest.app',
   );
 }
