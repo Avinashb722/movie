@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
 class FlixoDownloadScreen extends StatelessWidget {
   const FlixoDownloadScreen({super.key});
 
-  // Separate App Download URLs
   static const String androidUrl = 'https://www.movienest.app/downloads/movienest.apk';
-  static const String iosUrl = 'https://apps.apple.com/app/movienest-app';
-  static const String webUrl = 'https://www.movienest.app/';
-  static const String tvUrl = 'https://www.movienest.app/downloads/movienest-tv.apk';
   static const String windowsUrl = 'https://www.movienest.app/downloads/movienest-setup.exe';
-  static const String macosUrl = 'https://www.movienest.app/downloads/movienest.dmg';
+  static const String tvUrl = 'https://www.movienest.app/downloads/movienest-tv.apk';
 
-  Future<void> _launchURL(String urlString) async {
+  Future<void> _launchURL(BuildContext context, String urlString) async {
+    if (urlString.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('iOS app is coming soon! Use our Web App for now.', style: TextStyle(color: Colors.white)),
+          backgroundColor: Color(0xFF161616),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     try {
       final uri = Uri.parse(urlString);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -25,409 +30,360 @@ class FlixoDownloadScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = kIsWeb && MediaQuery.of(context).size.width > 768;
-
-    final cards = [
-      _buildPlatformCard(
-        context,
-        platformName: 'Android App',
-        description: 'Get the best experience on your Android phone or tablet.',
-        buttonLabel: 'GET IT ON Google Play',
-        iconData: Icons.android_rounded,
-        imagePath: 'android_download.png',
-        isGooglePlayStyle: true,
-        onPressed: () => _launchURL(androidUrl),
-      ),
-      _buildPlatformCard(
-        context,
-        platformName: 'iOS App',
-        description: 'Download on your iPhone or iPad and enjoy on the go.',
-        buttonLabel: 'Download on the App Store',
-        iconData: Icons.apple_rounded,
-        imagePath: 'iphone.png',
-        isAppStoreStyle: true,
-        onPressed: () => _launchURL(iosUrl),
-      ),
-      _buildPlatformCard(
-        context,
-        platformName: 'Web App',
-        description: 'Stream instantly on your favorite web browser.',
-        buttonLabel: 'Open Web App',
-        iconData: Icons.language,
-        imagePath: 'decatop.png',
-        isYellowButton: true,
-        onPressed: () => _launchURL(webUrl),
-      ),
-      _buildPlatformCard(
-        context,
-        platformName: 'Android TV',
-        description: 'Install on Android TV and enjoy on the big screen.',
-        buttonLabel: 'Download for TV',
-        iconData: Icons.tv_rounded,
-        imagePath: 'android_tv.png',
-        isYellowButton: true,
-        onPressed: () => _launchURL(tvUrl),
-      ),
-      _buildPlatformCard(
-        context,
-        platformName: 'Desktop App',
-        description: 'Download for Windows or macOS and watch anywhere.',
-        buttonLabel: 'Download for Windows',
-        secondButtonLabel: 'Download for macOS',
-        iconData: Icons.desktop_windows_rounded,
-        imagePath: 'decatop.png',
-        isDesktopRow: true,
-        onPressed: () => _launchURL(windowsUrl),
-        onSecondPressed: () => _launchURL(macosUrl),
-      ),
-    ];
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 768;
 
     return Scaffold(
-      backgroundColor: isDesktop ? AppColors.background : Colors.black,
-      appBar: isDesktop
-          ? null
-          : AppBar(
-              backgroundColor: Colors.black,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text('Download App', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
+      backgroundColor: const Color(0xFF0A0A0F),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 10),
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Download ',
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
-                ),
-                Text(
-                  'MovieNest',
-                  style: TextStyle(
-                    color: AppColors.accent,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                        color: AppColors.accent.withValues(alpha: 0.5),
-                        blurRadius: 15,
-                      )
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Watch unlimited movies, TV shows, and live channels\nanytime, anywhere.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 24),
-
-            // Features Row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildFeature(Icons.download_for_offline_outlined, 'Fast & Easy', 'Quick installation'),
-                  const SizedBox(width: 14),
-                  _buildFeature(Icons.shield_outlined, 'Safe & Secure', '100% trusted'),
-                  const SizedBox(width: 14),
-                  _buildFeature(Icons.devices_other, 'All Devices', 'One account everywhere'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Platform Cards Responsive Layout
-            if (isDesktop)
-              Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: cards[0]),
-                      const SizedBox(width: 20),
-                      Expanded(child: cards[1]),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: cards[2]),
-                      const SizedBox(width: 20),
-                      Expanded(child: cards[3]),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: cards[4]),
-                      const SizedBox(width: 20),
-                      const Expanded(child: SizedBox()),
-                    ],
-                  ),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  cards[0], const SizedBox(height: 20),
-                  cards[1], const SizedBox(height: 20),
-                  cards[2], const SizedBox(height: 20),
-                  cards[3], const SizedBox(height: 20),
-                  cards[4],
-                ],
-              ),
-            const SizedBox(height: 32),
-
-            // How to Install Timeline
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'How to Install',
-                style: TextStyle(color: AppColors.accent, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 16),
+            // Custom Header Banner matching popup background style
             Container(
-              padding: const EdgeInsets.all(20),
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: isDesktop ? 60 : 36),
               decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                color: const Color(0xFF0E0E15),
+                border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
               ),
-              child: Column(
-                children: [
-                  _buildInstallStep('1', 'Download the app for your device.'),
-                  const SizedBox(height: 16),
-                  _buildInstallStep('2', 'Install the app package file and open it.'),
-                  const SizedBox(height: 16),
-                  _buildInstallStep('3', 'Sign in using your MovieNest account credentials.'),
-                  const SizedBox(height: 16),
-                  _buildInstallStep('4', 'Start streaming unlimited movie titles!'),
-                ],
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.workspace_premium_rounded, color: AppColors.accent, size: 14),
+                            SizedBox(width: 6),
+                            Text(
+                              'OFFICIAL APPS',
+                              style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Download ',
+                            style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                          ),
+                          Text(
+                            'MovieNest',
+                            style: TextStyle(
+                              color: AppColors.accent,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              shadows: [
+                                Shadow(
+                                  color: AppColors.accent.withOpacity(0.3),
+                                  blurRadius: 15,
+                                )
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Experience clean, ad-free streaming on your phone, TV, or PC. Choose your platform below to get started.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 40),
+            
+            // Main content block
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Grid of download buttons
+                      isDesktop
+                          ? Row(
+                              children: [
+                                Expanded(child: _buildDownloadCard(context, Icons.android, 'ANDROID MOBILE', 'Download APK', Color(0xFF3DDC84), androidUrl)),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildDownloadCard(context, Icons.apple, 'APPLE IOS', 'Coming Soon', Colors.white, '')),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildDownloadCard(context, Icons.window, 'WINDOWS PC', 'Download EXE', Color(0xFF3DA9FC), windowsUrl)),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildDownloadCard(context, Icons.live_tv, 'ANDROID TV', 'Download APK', Color(0xFF3DDC84), tvUrl)),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                _buildDownloadCard(context, Icons.android, 'ANDROID MOBILE', 'Download APK', Color(0xFF3DDC84), androidUrl),
+                                const SizedBox(height: 12),
+                                _buildDownloadCard(context, Icons.apple, 'APPLE IOS', 'Coming Soon', Colors.white, ''),
+                                const SizedBox(height: 12),
+                                _buildDownloadCard(context, Icons.window, 'WINDOWS PC', 'Download EXE', Color(0xFF3DA9FC), windowsUrl),
+                                const SizedBox(height: 12),
+                                _buildDownloadCard(context, Icons.live_tv, 'ANDROID TV', 'Download APK', Color(0xFF3DDC84), tvUrl),
+                              ],
+                            ),
+                      
+                      const SizedBox(height: 48),
+                      
+                      // Title: How to install
+                      const Text(
+                        'HOW TO INSTALL & SET UP',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 80,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(1.5),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Platform Step-by-Step guides
+                      if (isDesktop)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildInstallGuide(
+                                'Windows Installation Guide',
+                                Icons.window,
+                                Color(0xFF3DA9FC),
+                                [
+                                  'Click the "Download EXE" button under the Windows PC section.',
+                                  'Open the downloaded installer "movienest-setup.exe".',
+                                  'If Windows Defender displays a warning (due to new package build signature), click "More Info" and then choose "Run Anyway".',
+                                  'Complete setup. The app will launch with a shortcut icon on your desktop.',
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _buildInstallGuide(
+                                'Android / TV Installation Guide',
+                                Icons.android,
+                                Color(0xFF3DDC84),
+                                [
+                                  'Click download to fetch the setup APK on your device.',
+                                  'Open the downloaded file from your Notifications or File Manager app.',
+                                  'If prompted, toggle "Allow Installation from Unknown Sources" inside your system settings.',
+                                  'For Smart TVs: transfer the APK to a USB drive or use the "Send Files to TV" app to install it wirelessly.',
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            _buildInstallGuide(
+                              'Windows Installation Guide',
+                              Icons.window,
+                              Color(0xFF3DA9FC),
+                              [
+                                'Click the "Download EXE" button under the Windows PC section.',
+                                'Open the downloaded installer "movienest-setup.exe".',
+                                'If Windows Defender displays a warning (due to new package build signature), click "More Info" and then choose "Run Anyway".',
+                                'Complete setup. The app will launch with a shortcut icon on your desktop.',
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _buildInstallGuide(
+                              'Android / TV Installation Guide',
+                              Icons.android,
+                              Color(0xFF3DDC84),
+                              [
+                                'Click download to fetch the setup APK on your device.',
+                                'Open the downloaded file from your Notifications or File Manager app.',
+                                'If prompted, toggle "Allow Installation from Unknown Sources" inside your system settings.',
+                                'For Smart TVs: transfer the APK to a USB drive or use the "Send Files to TV" app to install it wirelessly.',
+                              ],
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeature(IconData icon, String title, String subtitle) {
+  Widget _buildDownloadCard(BuildContext context, IconData icon, String label, String actionText, Color color, String url) {
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.accent, size: 20),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 9)),
-            ],
+        color: const Color(0xFF111118),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.06), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          hoverColor: Colors.white.withOpacity(0.03),
+          splashColor: color.withOpacity(0.12),
+          onTap: () => _launchURL(context, url),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color.withOpacity(0.1),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        actionText,
+                        style: TextStyle(
+                          color: url.isEmpty ? Colors.white38 : AppColors.accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  url.isEmpty ? Icons.lock_clock_outlined : Icons.arrow_forward_ios_rounded,
+                  color: Colors.white24,
+                  size: 14,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildPlatformCard(
-    BuildContext context, {
-    required String platformName,
-    required String description,
-    required String buttonLabel,
-    String? secondButtonLabel,
-    required IconData iconData,
-    required String imagePath,
-    bool isGooglePlayStyle = false,
-    bool isAppStoreStyle = false,
-    bool isYellowButton = false,
-    bool isDesktopRow = false,
-    VoidCallback? onPressed,
-    VoidCallback? onSecondPressed,
-  }) {
+  Widget _buildInstallGuide(String title, IconData icon, Color color, List<String> steps) {
     return Container(
       width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFF111118),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              child: Stack(
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...List.generate(steps.length, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black,
-                      child: Image.network(
-                        imagePath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.white10,
-                          child: Icon(iconData, color: Colors.white24, size: 48),
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: color.withOpacity(0.12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 10,
                         ),
                       ),
                     ),
                   ),
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.transparent, Colors.black87],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      steps[index],
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.4,
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 14,
-                  left: 16,
-                  child: Row(
-                    children: [
-                      Icon(iconData, color: AppColors.accent, size: 18),
-                      const SizedBox(width: 8),
-                      Text(platformName, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  description,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                ),
-                const SizedBox(height: 16),
-                if (isDesktopRow) ...[
-                  ElevatedButton.icon(
-                    onPressed: onPressed,
-                    icon: const Icon(Icons.window_sharp, size: 18),
-                    label: Text(buttonLabel),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed: onSecondPressed,
-                    icon: const Icon(Icons.apple_rounded, size: 18),
-                    label: Text(secondButtonLabel ?? 'macOS'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white12,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ] else if (isYellowButton) ...[
-                  ElevatedButton(
-                    onPressed: onPressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    child: Text(buttonLabel),
-                  ),
-                ] else if (isGooglePlayStyle) ...[
-                  ElevatedButton.icon(
-                    onPressed: onPressed,
-                    icon: const Icon(Icons.play_arrow, color: Colors.white),
-                    label: Text(buttonLabel),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: AppColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ] else if (isAppStoreStyle) ...[
-                  ElevatedButton.icon(
-                    onPressed: onPressed,
-                    icon: const Icon(Icons.apple_rounded, color: Colors.white),
-                    label: Text(buttonLabel),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: AppColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
                 ],
-              ],
-            ),
-          ),
+              ),
+            );
+          }),
         ],
       ),
-    );
-  }
-
-  Widget _buildInstallStep(String index, String instruction) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 12,
-          backgroundColor: AppColors.accent,
-          child: Text(index, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            instruction,
-            style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-          ),
-        ),
-      ],
     );
   }
 }

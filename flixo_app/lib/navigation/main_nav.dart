@@ -584,8 +584,6 @@ class _MainNavState extends State<MainNav> {
                     _buildSidebarItem(7, Icons.person_outline, Icons.person, 'Profile'),
                     _buildSidebarItem(8, Icons.settings_outlined, Icons.settings, 'Settings'),
                     _buildSidebarItem(9, Icons.install_mobile_rounded, Icons.install_mobile_rounded, 'Download App'),
-                    if (kIsWeb)
-                      _buildSidebarItem(99, Icons.bug_report, Icons.bug_report, 'Test 2Embed'),
                     if (!_isCollapsed) ...[
                       const Spacer(),
                       // Go Premium Promo Card
