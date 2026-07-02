@@ -111,13 +111,21 @@ function getAnime() {
 
 function formatMovieList(movies, header) {
   if (!movies || movies.length === 0) return '❌ No movies found.';
-  let lines = [`🎬 **${header}**`, ''];
+  const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+  let lines = [
+    `🔥 **${header.toUpperCase()}**`,
+    `_Top 10 most popular movies right now_`,
+    `━━━━━━━━━━━━━━━━━━━━`
+  ];
   movies.slice(0, 10).forEach((m, i) => {
+    const num = numberEmojis[i] || `${i + 1}.`;
     const title = m.title || 'Unknown';
     const year = m.release_date ? m.release_date.substring(0, 4) : 'N/A';
     const rating = m.vote_average ? m.vote_average.toFixed(1) : 'N/A';
-    lines.push(`${i + 1}. **${title}** (${year}) ⭐ ${rating}`);
+    const movieGenres = (m.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
+    lines.push(`${num} **${title.toUpperCase()}** (${year})\n⭐️ \`${rating}/10\` | 🎭 _${movieGenres}_\n`);
   });
+  lines.push(`━━━━━━━━━━━━━━━━━━━━`);
   return lines.join('\n');
 }
 
@@ -283,11 +291,26 @@ export default async function handler(req, res) {
       const webhookUrl = `https://${host}/api/bot`;
       const registerUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
       
+      const commands = [
+        { command: 'start', description: 'Start the bot' },
+        { command: 'help', description: 'Show help menu' },
+        { command: 'search', description: 'Search any movie' },
+        { command: 'trending', description: 'Trending movies this week' },
+        { command: 'latest', description: 'Latest releases' },
+        { command: 'movies', description: 'Browse popular movies' },
+        { command: 'anime', description: 'Browse anime' },
+        { command: 'genres', description: 'List all genres' },
+        { command: 'schedule', description: 'Show auto-post schedule' },
+        { command: 'status', description: 'Check bot status' }
+      ];
+
       return new Promise((resolve) => {
         https.get(registerUrl, (setupRes) => {
           let body = '';
           setupRes.on('data', chunk => body += chunk);
-          setupRes.on('end', () => {
+          setupRes.on('end', async () => {
+            // Also register commands
+            await sendTelegram('setMyCommands', { commands });
             res.setHeader('Content-Type', 'application/json');
             res.status(200).send(body);
             resolve();
