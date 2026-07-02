@@ -97,10 +97,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<ArchiveStream> _bgArchives = [];
   bool _bgLoading = true;
 
+  bool _areControlsVisible = true;
+  Timer? _controlsTimer;
+
+  void _startControlsTimer() {
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          _areControlsVisible = false;
+        });
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _forceLandscape();
+    _startControlsTimer();
 
     _originalDirectUrl = widget.directUrl;
     if (_originalDirectUrl != null && _originalDirectUrl!.contains('||')) {
@@ -1006,6 +1021,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _controlsTimer?.cancel();
     _windowsTorrentService?.dispose();
     _betterPlayerController?.dispose();
     _webVideoPlayerController?.dispose();
@@ -1059,14 +1075,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
         return KeyEventResult.ignored;
       },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(children: [
-          Positioned.fill(child: _buildPlayer()),
-          Positioned(top: 0, left: 0, right: 0, child: _buildTopBar()),
-          if (!_isDirectPlayback && _streams.isNotEmpty)
-            Positioned(bottom: 10, left: 0, right: 0, child: _buildQualityBar()),
-        ]),
+      child: MouseRegion(
+        onHover: (_) {
+          if (!_areControlsVisible) {
+            setState(() {
+              _areControlsVisible = true;
+            });
+          }
+          _startControlsTimer();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() {
+                    _areControlsVisible = !_areControlsVisible;
+                  });
+                  if (_areControlsVisible) {
+                    _startControlsTimer();
+                  } else {
+                    _controlsTimer?.cancel();
+                  }
+                },
+                child: _buildPlayer(),
+              ),
+            ),
+            if (_areControlsVisible)
+              Positioned(top: 0, left: 0, right: 0, child: _buildTopBar()),
+            if (_areControlsVisible && !_isDirectPlayback && _streams.isNotEmpty)
+              Positioned(bottom: 10, left: 0, right: 0, child: _buildQualityBar()),
+          ]),
+        ),
       ),
     );
   }
