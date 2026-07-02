@@ -1070,6 +1070,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               return;
                             }
                             if (isDownloadFlow) {
+                              if (kIsWeb) {
+                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                return;
+                              }
                               DownloadService.instance.addDownload(
                                 m.title,
                                 '2h 00m',
@@ -1154,6 +1158,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               return;
                             }
                             if (isDownloadFlow) {
+                              if (kIsWeb) {
+                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                return;
+                              }
                               DownloadService.instance.addDownload(
                                 m.title,
                                 '2h 00m',
@@ -1238,6 +1246,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               return;
                             }
                             if (isDownloadFlow) {
+                              if (kIsWeb) {
+                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                return;
+                              }
                               DownloadService.instance.addDownload(
                                 m.title,
                                 '2h 00m',
@@ -1320,6 +1332,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               return;
                             }
                             if (isDownloadFlow) {
+                              if (kIsWeb) {
+                                launchUrl(Uri.parse(t.magnetUri), mode: LaunchMode.externalApplication);
+                                return;
+                              }
                               if (t.magnetUri.isEmpty) {
                                 ScaffoldMessenger.of(this.context).showSnackBar(
                                   const SnackBar(content: Text('Magnet link unavailable for download.'), backgroundColor: Colors.redAccent),
