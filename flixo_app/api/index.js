@@ -538,14 +538,11 @@ export default async function handler(req, res) {
             const topic = parts[1];
             let infoText = '';
             if (topic === 'watch') {
-              infoText = '📺 **How to Watch on MovieNest:**\n\n' +
-                         '1️⃣ Tap the **"▶️ Watch on MovieNest"** button on the card.\n' +
-                         '2️⃣ The movie link will open in your browser or automatically launch your **MovieNest Mobile App** if installed.\n' +
-                         '3️⃣ Press the **Play** button on the streaming player to start watching instantly!';
+              infoText = '📺 **How to Watch:**\n\n' +
+                         'Click the button below **"Watch on MovieNest"**, it will open the movie page on the web. Here you have a play button, click play. If it does not work, see in other links and play.';
             } else if (topic === 'download') {
-              infoText = '📥 **How to Download MovieNest App:**\n\n' +
-                         '• 📱 **Android Mobile**: Open [movienest.app](https://www.movienest.app) on your phone browser and tap the **"Download Android App"** banner at the top.\n' +
-                         '• 💻 **Windows Desktop**: Open [movienest.app](https://www.movienest.app) on your computer and tap the **"Download Windows App"** installer button.';
+              infoText = '📥 **How to Download:**\n\n' +
+                         'Click **"Download App"** and select the recommended one, and it will download.';
             }
             // Stop loading spinner immediately
             await sendTelegram('answerCallbackQuery', { callback_query_id: callbackQueryId });
