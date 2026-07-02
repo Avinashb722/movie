@@ -349,12 +349,16 @@ export default async function handler(req, res) {
         https.get(registerUrl, (setupRes) => {
           let body = '';
           setupRes.on('data', chunk => body += chunk);
-          setupRes.on('end', async () => {
-            // Also register commands
-            await sendTelegram('setMyCommands', { commands });
-            res.setHeader('Content-Type', 'application/json');
-            res.status(200).send(body);
-            resolve();
+          setupRes.on('end', () => {
+            sendTelegram('setMyCommands', { commands }).then(() => {
+              res.setHeader('Content-Type', 'application/json');
+              res.status(200).send(body);
+              resolve();
+            }).catch(() => {
+              res.setHeader('Content-Type', 'application/json');
+              res.status(200).send(body);
+              resolve();
+            });
           });
         }).on('error', (err) => {
           res.status(500).send({ error: err.message });
