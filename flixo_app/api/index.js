@@ -17,6 +17,8 @@ const GENRES = {
   53: 'Thriller', 10752: 'War', 37: 'Western'
 };
 
+const BOT_TOKEN = '8352588589:AAF9eJkNtB6KdXEcVfKOnS1bwJ-ELu_UR1M';
+
 function searchTMDB(query) {
   return new Promise((resolve) => {
     const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
@@ -35,9 +37,92 @@ function searchTMDB(query) {
   });
 }
 
+function getTrendingMovies() {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function getNowPlayingMovies() {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/movie/now_playing?api_key=${apiKey}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function getPopularMovies() {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function getAnime() {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_genres=16&with_original_language=ja&sort_by=popularity.desc`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function formatMovieList(movies, header) {
+  if (!movies || movies.length === 0) return '❌ No movies found.';
+  let lines = [`🎬 **${header}**`, ''];
+  movies.slice(0, 10).forEach((m, i) => {
+    const title = m.title || 'Unknown';
+    const year = m.release_date ? m.release_date.substring(0, 4) : 'N/A';
+    const rating = m.vote_average ? m.vote_average.toFixed(1) : 'N/A';
+    lines.push(`${i + 1}. **${title}** (${year}) ⭐ ${rating}`);
+  });
+  return lines.join('\n');
+}
+
 function sendTelegram(method, payload) {
   return new Promise((resolve, reject) => {
-    const BOT_TOKEN = '8685589784:AAGjCgABnDcKRn9LkG9vB3TszSfVq_6KS9A';
     const postData = JSON.stringify(payload);
     const options = {
       hostname: 'api.telegram.org',
@@ -79,8 +164,13 @@ export default async function handler(req, res) {
   const host = req.headers.host || 'localhost';
   const urlObj = new URL(req.url, `https://${host}`);
   if (urlObj.pathname.startsWith('/api/bot') || urlObj.pathname.startsWith('/api/telegram')) {
+    
+    // Global state in-memory variables (persists during warm runtime)
+    global.autopostChannel = global.autopostChannel || null;
+    global.autopostEnabled = global.autopostEnabled !== undefined ? global.autopostEnabled : false;
+
+    // Handle GET Setup Endpoint
     if (req.method === 'GET' && urlObj.searchParams.get('setup') === 'true') {
-      const BOT_TOKEN = '8685589784:AAGjCgABnDcKRn9LkG9vB3TszSfVq_6KS9A';
       const webhookUrl = `https://${host}/api/bot`;
       const registerUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
       
@@ -100,6 +190,56 @@ export default async function handler(req, res) {
       });
     }
 
+    // Handle Cron Auto-post Endpoint
+    if (req.method === 'GET' && urlObj.searchParams.get('cron') === 'true') {
+      if (global.autopostEnabled && global.autopostChannel) {
+        try {
+          const results = await getTrendingMovies();
+          if (results && results.length > 0) {
+            const movie = results[Math.floor(Math.random() * results.length)];
+            const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
+            const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+            const movieGenres = (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
+            let overview = movie.overview || 'No description available.';
+            if (overview.length > 300) {
+              overview = overview.substring(0, 297) + '...';
+            }
+            
+            const caption = `🎬 **${movie.title} (${year})**\n⭐ Rating: ${rating}/10\n🎭 Genres: ${movieGenres}\n\n📝 ${overview}`;
+            const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+            const replyMarkup = {
+              inline_keyboard: [
+                [
+                  { text: '▶️ Watch on MovieNest', url: watch_url }
+                ]
+              ]
+            };
+            
+            if (movie.poster_path) {
+              await sendTelegram('sendPhoto', {
+                chat_id: global.autopostChannel,
+                photo: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                caption: caption,
+                parse_mode: 'markdown',
+                reply_markup: replyMarkup
+              });
+            } else {
+              await sendTelegram('sendMessage', {
+                chat_id: global.autopostChannel,
+                text: caption,
+                parse_mode: 'markdown',
+                reply_markup: replyMarkup
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Cron autopost error:', e);
+        }
+      }
+      return res.status(200).send('Cron Auto-post Finished');
+    }
+
+    // Handle Telegram Webhook Event (POST)
     if (req.method === 'POST') {
       try {
         const rawBody = await new Promise((resolve, reject) => {
@@ -114,21 +254,102 @@ export default async function handler(req, res) {
           const chatId = update.message.chat.id;
           const text = update.message.text.trim();
           
-          if (text === '/start' || text === '/help') {
+          if (text === '/start') {
             await sendTelegram('sendMessage', {
               chat_id: chatId,
-              text: `🎬 **MovieNest Bot**\n_Search any movie and get a direct link to watch it on MovieNest!_\n\n🔍 Just type any movie name to search.\n\n🌐 Website: https://www.movienest.app`,
+              text: `🎬 **Welcome to MovieNest Bot!**\n\nSearch any movie and get a direct link to watch/stream it on MovieNest website.\n\nType /help to see all features!`,
               parse_mode: 'markdown'
             });
-          } else {
-            const results = await searchTMDB(text);
-            if (results.length === 0) {
+          } else if (text === '/help') {
+            const helpText = `🎬 **MovieNest Bot Menu**\n\n` +
+              `🤖 **Commands:**\n` +
+              `• /start - Start the bot\n` +
+              `• /help - Show help menu\n` +
+              `• /search <movie> - Search movies\n` +
+              `• /trending - Show trending movies\n` +
+              `• /latest - Latest releases\n` +
+              `• /movies - Browse movies\n` +
+              `• /anime - Browse anime\n` +
+              `• /genres - List genres\n\n` +
+              `📢 **Channel Posting:**\n` +
+              `• /post @channel Movie Name - Post card to a channel\n` +
+              `• /autopost on @channel - Auto-post trending movies every 4 hours\n` +
+              `• /autopost off - Disable auto-posting\n` +
+              `• /schedule - Show scheduled auto-post status\n\n` +
+              `🔍 *Or just type any movie name directly to search!*`;
+            await sendTelegram('sendMessage', {
+              chat_id: chatId,
+              text: helpText,
+              parse_mode: 'markdown'
+            });
+          } else if (text === '/trending') {
+            const movies = await getTrendingMovies();
+            const msg = formatMovieList(movies, 'Trending Movies This Week');
+            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+          } else if (text === '/latest') {
+            const movies = await getNowPlayingMovies();
+            const msg = formatMovieList(movies, 'Latest Releases');
+            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+          } else if (text === '/movies') {
+            const movies = await getPopularMovies();
+            const msg = formatMovieList(movies, 'Popular Movies');
+            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+          } else if (text === '/anime') {
+            const movies = await getAnime();
+            const msg = formatMovieList(movies, 'Popular Anime Releases');
+            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+          } else if (text === '/genres') {
+            const msg = `🎭 **Movie Genres:**\n\n` + Object.entries(GENRES).map(([id, name]) => `• ${name}`).join('\n');
+            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+          } else if (text === '/schedule') {
+            await sendTelegram('sendMessage', {
+              chat_id: chatId,
+              text: `📅 **Auto-Post Schedule Info:**\n\n• **Status:** ${global.autopostEnabled ? '✅ Active' : '❌ Inactive'}\n• **Target Channel:** ${global.autopostChannel || 'None'}\n• **Interval:** Every 4 hours (Vercel Cron Trigger)`,
+              parse_mode: 'markdown'
+            });
+          } else if (text.startsWith('/autopost')) {
+            const parts = text.split(' ');
+            if (parts.length >= 3 && parts[1] === 'on') {
+              global.autopostChannel = parts[2];
+              global.autopostEnabled = true;
               await sendTelegram('sendMessage', {
                 chat_id: chatId,
-                text: `❌ No movies found for "${text}". Try another movie name.`
+                text: `✅ Autopost enabled for channel **${global.autopostChannel}**. Trending movies will be posted every 4 hours.`,
+                parse_mode: 'markdown'
+              });
+            } else if (parts.length >= 2 && parts[1] === 'off') {
+              global.autopostEnabled = false;
+              await sendTelegram('sendMessage', {
+                chat_id: chatId,
+                text: `❌ Autopost disabled.`,
+                parse_mode: 'markdown'
               });
             } else {
-              for (const movie of results.slice(0, 3)) {
+              await sendTelegram('sendMessage', {
+                chat_id: chatId,
+                text: `💡 Usage:\n• \`/autopost on @channelname\`\n• \`/autopost off\``,
+                parse_mode: 'markdown'
+              });
+            }
+          } else if (text.startsWith('/post')) {
+            const parts = text.split(' ');
+            if (parts.length < 3) {
+              await sendTelegram('sendMessage', {
+                chat_id: chatId,
+                text: '❌ Usage: `/post @channelname Movie Name`',
+                parse_mode: 'markdown'
+              });
+            } else {
+              const targetChannel = parts[1];
+              const query = parts.slice(2).join(' ');
+              const results = await searchTMDB(query);
+              if (results.length === 0) {
+                await sendTelegram('sendMessage', {
+                  chat_id: chatId,
+                  text: `❌ No movies found for "${query}" to post to ${targetChannel}.`
+                });
+              } else {
+                const movie = results[0];
                 const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
                 const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
                 const movieGenres = (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
@@ -147,21 +368,88 @@ export default async function handler(req, res) {
                   ]
                 };
                 
+                let success = false;
                 if (movie.poster_path) {
-                  await sendTelegram('sendPhoto', {
-                    chat_id: chatId,
+                  const res = await sendTelegram('sendPhoto', {
+                    chat_id: targetChannel,
                     photo: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
                     caption: caption,
                     parse_mode: 'markdown',
                     reply_markup: replyMarkup
                   });
+                  success = res.ok;
                 } else {
-                  await sendTelegram('sendMessage', {
-                    chat_id: chatId,
+                  const res = await sendTelegram('sendMessage', {
+                    chat_id: targetChannel,
                     text: caption,
                     parse_mode: 'markdown',
                     reply_markup: replyMarkup
                   });
+                  success = res.ok;
+                }
+                
+                if (success) {
+                  await sendTelegram('sendMessage', {
+                    chat_id: chatId,
+                    text: `✅ Posted **${movie.title}** to ${targetChannel}!`
+                  });
+                } else {
+                  await sendTelegram('sendMessage', {
+                    chat_id: chatId,
+                    text: `❌ Failed to post to ${targetChannel}. Make sure the bot is an admin in that channel.`
+                  });
+                }
+              }
+            }
+          } else {
+            // Direct query search (non-command search)
+            let query = text;
+            if (text.startsWith('/search')) {
+              query = text.replace('/search', '').trim();
+            }
+            if (query.length >= 2) {
+              const results = await searchTMDB(query);
+              if (results.length === 0) {
+                await sendTelegram('sendMessage', {
+                  chat_id: chatId,
+                  text: `❌ No movies found for "${query}". Try another movie name.`
+                });
+              } else {
+                for (const movie of results.slice(0, 3)) {
+                  const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
+                  const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+                  const movieGenres = (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
+                  let overview = movie.overview || 'No description available.';
+                  if (overview.length > 300) {
+                    overview = overview.substring(0, 297) + '...';
+                  }
+                  
+                  const caption = `🎬 **${movie.title} (${year})**\n⭐ Rating: ${rating}/10\n🎭 Genres: ${movieGenres}\n\n📝 ${overview}`;
+                  const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+                  const replyMarkup = {
+                    inline_keyboard: [
+                      [
+                        { text: '▶️ Watch on MovieNest', url: watch_url }
+                      ]
+                    ]
+                  };
+                  
+                  if (movie.poster_path) {
+                    await sendTelegram('sendPhoto', {
+                      chat_id: chatId,
+                      photo: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                      caption: caption,
+                      parse_mode: 'markdown',
+                      reply_markup: replyMarkup
+                    });
+                  } else {
+                    await sendTelegram('sendMessage', {
+                      chat_id: chatId,
+                      text: caption,
+                      parse_mode: 'markdown',
+                      reply_markup: replyMarkup
+                    });
+                  }
                 }
               }
             }

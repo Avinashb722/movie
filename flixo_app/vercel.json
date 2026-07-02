@@ -13,5 +13,11 @@
     { "src": "/((?!api/|downloads/|\\.well-known/|public/).*)", "dest": "/public/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/public/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/bot?cron=true",
+      "schedule": "0 */4 * * *"
+    }
   ]
 }
