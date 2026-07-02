@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/movie.dart';
 import '../services/tmdb_service.dart';
 import '../services/home_cache_service.dart';
@@ -777,9 +778,79 @@ class _HomeScreenState extends State<HomeScreen> {
                 ...categoryRows,
 
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              if (kIsWeb) SliverToBoxAdapter(child: _buildWebFooter()),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDMCADialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('DMCA Takedown Policy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const SingleChildScrollView(
+          child: Text(
+            'MovieNest is a catalog index and video player. We do not host or upload any video files.\n\n'
+            'All links are gathered from public domains. If you are a copyright owner and want a link removed, '
+            'please contact us at support@movienest.app and we will remove the listing within 48 hours.',
+            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebFooter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () {
+                  launchUrl(Uri.parse('/privacy-policy'), mode: LaunchMode.platformDefault);
+                },
+                child: const Text('Privacy Policy', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              ),
+              const SizedBox(width: 16),
+              const Text('|', style: TextStyle(color: Colors.white24)),
+              const SizedBox(width: 16),
+              TextButton(
+                onPressed: _showDMCADialog,
+                child: const Text('DMCA Takedown', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'MovieNest is a catalog index and video player. We do not host or upload any video files.\n'
+            'All links are gathered from public domains. If you are a copyright owner and want a link removed,\n'
+            'contact support@movienest.app and we will remove the listing within 48 hours.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white38, fontSize: 11),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            '© 2026 MovieNest. All rights reserved.',
+            style: TextStyle(color: Colors.white24, fontSize: 10),
+          ),
+        ],
       ),
     );
   }
