@@ -8,6 +8,7 @@
     { "src": "/.well-known/assetlinks.json", "dest": "/public/assetlinks.json" },
     { "src": "/downloads/(.*)", "dest": "/public/downloads/$1" },
     { "src": "/privacy-policy", "dest": "/public/privacy-policy.html" },
+    { "src": "/terms-of-service", "dest": "/public/terms-of-service.html" },
     { "src": "/api(.*)", "dest": "/api/index.js" },
     { "src": "/((?!api/|downloads/|\\.well-known/|public/).*)", "dest": "/public/$1" },
     { "handle": "filesystem" },
