@@ -165,6 +165,39 @@ function getSimilarMovies(tmdbId) {
   });
 }
 
+function getMoviesByLanguage(langCode) {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_original_language=${langCode}&sort_by=popularity.desc`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function buildListButtons(movies) {
+  const row1 = [];
+  const row2 = [];
+  const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+  movies.slice(0, 10).forEach((m, i) => {
+    const btn = { text: numberEmojis[i] || String(i + 1), callback_data: `show:${m.id}` };
+    if (i < 5) {
+      row1.push(btn);
+    } else {
+      row2.push(btn);
+    }
+  });
+  return { inline_keyboard: [row1, row2] };
+}
+
 function getStars(rating) {
   const starsCount = Math.round(rating);
   let stars = '';
@@ -432,7 +465,7 @@ export default async function handler(req, res) {
           return res.status(200).send('OK');
         }
 
-        // 2. Handle Callback Query Updates (Pagination & Similar Movies Swiping)
+        // 2. Handle Callback Query Updates (Pagination, Similar Movies, Languages, List Clicks)
         if (update && update.callback_query) {
           const callbackQueryId = update.callback_query.id;
           const callbackData = update.callback_query.data;
@@ -447,6 +480,152 @@ export default async function handler(req, res) {
 
           const parts = callbackData.split(':');
           const action = parts[0];
+
+          // Action "show" -> Get movie details and display full premium card (can edit or send new)
+          if (action === 'show') {
+            const tmdbId = parts[1];
+            const details = await getMovieDetails(tmdbId);
+            if (details) {
+              const caption = buildMovieCard(null, details);
+              const replyMarkup = buildButtons(details, '', 0, 1);
+              
+              if (details.poster_path) {
+                // If message has a photo, edit media, otherwise send new photo
+                const hasPhoto = !!(message.photo || message.document);
+                if (hasPhoto) {
+                  await sendTelegram('editMessageMedia', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    media: {
+                      type: 'photo',
+                      media: `https://image.tmdb.org/t/p/w500${details.poster_path}`,
+                      caption: caption,
+                      parse_mode: 'markdown'
+                    },
+                    reply_markup: replyMarkup
+                  });
+                } else {
+                  await sendTelegram('sendPhoto', {
+                    chat_id: chatId,
+                    photo: `https://image.tmdb.org/t/p/w500${details.poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                }
+              } else {
+                await sendTelegram('editMessageText', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  text: caption,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              }
+            }
+          }
+
+          // Action "lang" -> Browse movies by language code
+          if (action === 'lang') {
+            const langCode = parts[1];
+            const results = await getMoviesByLanguage(langCode);
+            if (results && results.length > 0) {
+              const langNames = { hi: 'Hindi', en: 'English', te: 'Telugu', ta: 'Tamil', ml: 'Malayalam', ko: 'Korean', ja: 'Japanese', es: 'Spanish' };
+              const caption = formatMovieList(results, `${langNames[langCode] || langCode} Releases`);
+              const replyMarkup = buildListButtons(results);
+              
+              const hasPhoto = !!(message.photo || message.document);
+              if (hasPhoto && results[0].poster_path) {
+                await sendTelegram('editMessageMedia', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  media: {
+                    type: 'photo',
+                    media: `https://image.tmdb.org/t/p/w500${results[0].poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown'
+                  },
+                  reply_markup: replyMarkup
+                });
+              } else {
+                if (results[0].poster_path) {
+                  await sendTelegram('sendPhoto', {
+                    chat_id: chatId,
+                    photo: `https://image.tmdb.org/t/p/w500${results[0].poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                } else {
+                  await sendTelegram('editMessageText', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                }
+              }
+            }
+          }
+
+          // Action "menu" -> Quick menu routing
+          if (action === 'menu') {
+            const route = parts[1];
+            if (route === 'trending') {
+              const results = await getTrendingMovies();
+              if (results && results.length > 0) {
+                const caption = formatMovieList(results, 'Trending Movies This Week');
+                const replyMarkup = buildListButtons(results);
+                if (results[0].poster_path) {
+                  await sendTelegram('sendPhoto', {
+                    chat_id: chatId,
+                    photo: `https://image.tmdb.org/t/p/w500${results[0].poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                } else {
+                  await sendTelegram('sendMessage', { chat_id: chatId, text: caption, parse_mode: 'markdown', reply_markup: replyMarkup });
+                }
+              }
+            } else if (route === 'latest') {
+              const results = await getNowPlayingMovies();
+              if (results && results.length > 0) {
+                const caption = formatMovieList(results, 'Latest Releases');
+                const replyMarkup = buildListButtons(results);
+                if (results[0].poster_path) {
+                  await sendTelegram('sendPhoto', {
+                    chat_id: chatId,
+                    photo: `https://image.tmdb.org/t/p/w500${results[0].poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                } else {
+                  await sendTelegram('sendMessage', { chat_id: chatId, text: caption, parse_mode: 'markdown', reply_markup: replyMarkup });
+                }
+              }
+            } else if (route === 'languages') {
+              const languagesMenu = {
+                inline_keyboard: [
+                  [ { text: '🇮🇳 Hindi', callback_data: 'lang:hi' }, { text: '🇺🇸 English', callback_data: 'lang:en' } ],
+                  [ { text: '🇮🇳 Telugu', callback_data: 'lang:te' }, { text: '🇮🇳 Tamil', callback_data: 'lang:ta' } ],
+                  [ { text: '🇮🇳 Malayalam', callback_data: 'lang:ml' }, { text: '🇰🇷 Korean', callback_data: 'lang:ko' } ],
+                  [ { text: '🇯🇵 Japanese', callback_data: 'lang:ja' }, { text: '🇪🇸 Spanish', callback_data: 'lang:es' } ]
+                ]
+              };
+              await sendTelegram('sendMessage', {
+                chat_id: chatId,
+                text: '🌐 **Select Language to Browse Movies:**',
+                parse_mode: 'markdown',
+                reply_markup: languagesMenu
+              });
+            } else if (route === 'genres') {
+              const msg = `🎭 **Movie Genres:**\n\n` + Object.entries(GENRES).map(([id, name]) => `• ${name}`).join('\n');
+              await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+            }
+          }
 
           // Action "p" -> Standard search pagination
           if (action === 'p') {
@@ -570,11 +749,28 @@ export default async function handler(req, res) {
           const chatId = update.message.chat.id;
           const text = update.message.text.trim();
           
+          const startKeyboard = {
+            inline_keyboard: [
+              [
+                { text: '🔥 Trending', callback_data: 'menu:trending' },
+                { text: '🆕 Latest', callback_data: 'menu:latest' }
+              ],
+              [
+                { text: '🌐 Languages', callback_data: 'menu:languages' },
+                { text: '🎭 Genres', callback_data: 'menu:genres' }
+              ],
+              [
+                { text: '🚀 Watch on MovieNest', url: 'https://www.movienest.app' }
+              ]
+            ]
+          };
+
           if (text === '/start') {
             await sendTelegram('sendMessage', {
               chat_id: chatId,
-              text: `🎬 **Welcome to MovieNest Bot!**\n\nSearch any movie and get a direct link to watch/stream it on MovieNest website.\n\nType /help to see all features!`,
-              parse_mode: 'markdown'
+              text: `🎬 **Welcome to MovieNest Premium!**\n\nSearch any movie instantly or explore using the quick dashboard options below:`,
+              parse_mode: 'markdown',
+              reply_markup: startKeyboard
             });
           } else if (text === '/help') {
             const helpText = `🎬 **MovieNest Bot Menu**\n\n` +
@@ -596,24 +792,77 @@ export default async function handler(req, res) {
             await sendTelegram('sendMessage', {
               chat_id: chatId,
               text: helpText,
-              parse_mode: 'markdown'
+              parse_mode: 'markdown',
+              reply_markup: startKeyboard
             });
           } else if (text === '/trending') {
             const movies = await getTrendingMovies();
-            const msg = formatMovieList(movies, 'Trending Movies This Week');
-            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+            if (movies && movies.length > 0) {
+              const msg = formatMovieList(movies, 'Trending Movies This Week');
+              const replyMarkup = buildListButtons(movies);
+              if (movies[0].poster_path) {
+                await sendTelegram('sendPhoto', {
+                  chat_id: chatId,
+                  photo: `https://image.tmdb.org/t/p/w500${movies[0].poster_path}`,
+                  caption: msg,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown', reply_markup: replyMarkup });
+              }
+            }
           } else if (text === '/latest') {
             const movies = await getNowPlayingMovies();
-            const msg = formatMovieList(movies, 'Latest Releases');
-            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+            if (movies && movies.length > 0) {
+              const msg = formatMovieList(movies, 'Latest Releases');
+              const replyMarkup = buildListButtons(movies);
+              if (movies[0].poster_path) {
+                await sendTelegram('sendPhoto', {
+                  chat_id: chatId,
+                  photo: `https://image.tmdb.org/t/p/w500${movies[0].poster_path}`,
+                  caption: msg,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown', reply_markup: replyMarkup });
+              }
+            }
           } else if (text === '/movies') {
             const movies = await getPopularMovies();
-            const msg = formatMovieList(movies, 'Popular Movies');
-            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+            if (movies && movies.length > 0) {
+              const msg = formatMovieList(movies, 'Popular Movies');
+              const replyMarkup = buildListButtons(movies);
+              if (movies[0].poster_path) {
+                await sendTelegram('sendPhoto', {
+                  chat_id: chatId,
+                  photo: `https://image.tmdb.org/t/p/w500${movies[0].poster_path}`,
+                  caption: msg,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown', reply_markup: replyMarkup });
+              }
+            }
           } else if (text === '/anime') {
             const movies = await getAnime();
-            const msg = formatMovieList(movies, 'Popular Anime Releases');
-            await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
+            if (movies && movies.length > 0) {
+              const msg = formatMovieList(movies, 'Popular Anime Releases');
+              const replyMarkup = buildListButtons(movies);
+              if (movies[0].poster_path) {
+                await sendTelegram('sendPhoto', {
+                  chat_id: chatId,
+                  photo: `https://image.tmdb.org/t/p/w500${movies[0].poster_path}`,
+                  caption: msg,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown', reply_markup: replyMarkup });
+              }
+            }
           } else if (text === '/genres') {
             const msg = `🎭 **Movie Genres:**\n\n` + Object.entries(GENRES).map(([id, name]) => `• ${name}`).join('\n');
             await sendTelegram('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'markdown' });
@@ -754,9 +1003,6 @@ export default async function handler(req, res) {
       }
       return res.status(200).send('OK');
     }
-
-    return res.status(200).send('Telegram Bot Webhook Endpoint is Active');
-  }
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
