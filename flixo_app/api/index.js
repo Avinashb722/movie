@@ -121,6 +121,115 @@ function formatMovieList(movies, header) {
   return lines.join('\n');
 }
 
+function getMovieDetails(tmdbId) {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
+function getSimilarMovies(tmdbId) {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/movie/${tmdbId}/similar?api_key=${apiKey}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body).results || []);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function getStars(rating) {
+  const starsCount = Math.round(rating);
+  let stars = '';
+  for (let i = 1; i <= 10; i++) {
+    stars += i <= starsCount ? '⭐' : '▪️';
+  }
+  return stars;
+}
+
+function buildMovieCard(movie, details) {
+  const title = details ? details.title : movie.title;
+  const rating = details ? details.vote_average : movie.vote_average;
+  const ratingStars = getStars(rating);
+  const year = (details ? details.release_date : movie.release_date || '').substring(0, 4) || 'N/A';
+  const genres = details ? details.genres.map(g => g.name).slice(0, 3).join(', ') : (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
+  const runtime = details && details.runtime ? `${details.runtime} min` : 'N/A';
+  let overview = details ? details.overview : movie.overview || 'No description available.';
+  if (overview.length > 300) {
+    overview = overview.substring(0, 297) + '...';
+  }
+
+  return `🎬 **${title.toUpperCase()} (${year})**\n` +
+         `━━━━━━━━━━━━━━━━━━━━\n` +
+         `⭐️ **Rating:**  \`${rating.toFixed(1)}/10\`  (${ratingStars})\n` +
+         `🎭 **Genres:**  \`${genres}\`\n` +
+         `⏱️ **Runtime:** \`${runtime}\`\n` +
+         `━━━━━━━━━━━━━━━━━━━━\n` +
+         `📝 *${overview}*`;
+}
+
+function buildButtons(movie, query, index, totalResults, similarId = null) {
+  const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+  const inline_keyboard = [
+    [
+      { text: '▶️ Watch on MovieNest', url: watch_url }
+    ]
+  ];
+
+  // Add similar movies option
+  if (!similarId) {
+    inline_keyboard.push([
+      { text: '🎬 Find Similar Movies', callback_data: `s:${movie.id}` }
+    ]);
+  }
+
+  // Add pagination row
+  const paginationRow = [];
+  const safeQuery = query.substring(0, 30);
+  if (similarId) {
+    if (index > 0) {
+      paginationRow.push({ text: '◀️ Prev', callback_data: `ps:${similarId}:${index - 1}` });
+    }
+    paginationRow.push({ text: `Page ${index + 1}/${totalResults}`, callback_data: 'noop' });
+    if (index < totalResults - 1) {
+      paginationRow.push({ text: 'Next ▶️', callback_data: `ps:${similarId}:${index + 1}` });
+    }
+  } else {
+    if (index > 0) {
+      paginationRow.push({ text: '◀️ Prev', callback_data: `p:${safeQuery}:${index - 1}` });
+    }
+    paginationRow.push({ text: `${index + 1}/${totalResults}`, callback_data: 'noop' });
+    if (index < totalResults - 1) {
+      paginationRow.push({ text: 'Next ▶️', callback_data: `p:${safeQuery}:${index + 1}` });
+    }
+  }
+  
+  if (paginationRow.length > 0) {
+    inline_keyboard.push(paginationRow);
+  }
+
+  return { inline_keyboard };
+}
+
 function sendTelegram(method, payload) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
@@ -250,6 +359,182 @@ export default async function handler(req, res) {
         });
         
         const update = JSON.parse(rawBody);
+
+        // 1. Handle Inline Query Updates
+        if (update && update.inline_query) {
+          const inlineQueryId = update.inline_query.id;
+          const query = update.inline_query.query.trim();
+          if (query.length >= 2) {
+            const results = await searchTMDB(query);
+            const inlineResults = results.slice(0, 5).map(movie => {
+              const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
+              const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+              const caption = buildMovieCard(movie, null);
+              const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+              
+              return {
+                type: 'article',
+                id: String(movie.id),
+                title: `${movie.title} (${year})`,
+                description: `Rating: ${rating} | ${movie.overview || ''}`,
+                thumb_url: movie.poster_path ? `https://image.tmdb.org/t/p/w92${movie.poster_path}` : undefined,
+                input_message_content: {
+                  message_text: caption,
+                  parse_mode: 'markdown'
+                },
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: '▶️ Watch on MovieNest', url: watch_url }
+                    ]
+                  ]
+                }
+              };
+            });
+
+            await sendTelegram('answerInlineQuery', {
+              inline_query_id: inlineQueryId,
+              results: inlineResults,
+              cache_time: 300
+            });
+          }
+          return res.status(200).send('OK');
+        }
+
+        // 2. Handle Callback Query Updates (Pagination & Similar Movies Swiping)
+        if (update && update.callback_query) {
+          const callbackQueryId = update.callback_query.id;
+          const callbackData = update.callback_query.data;
+          const message = update.callback_query.message;
+          const chatId = message.chat.id;
+          const messageId = message.message_id;
+
+          if (callbackData === 'noop') {
+            await sendTelegram('answerCallbackQuery', { callback_query_id: callbackQueryId });
+            return res.status(200).send('OK');
+          }
+
+          const parts = callbackData.split(':');
+          const action = parts[0];
+
+          // Action "p" -> Standard search pagination
+          if (action === 'p') {
+            const query = parts[1];
+            const index = parseInt(parts[2], 10);
+            const results = await searchTMDB(query);
+            if (results && results[index]) {
+              const movie = results[index];
+              const details = await getMovieDetails(movie.id);
+              const caption = buildMovieCard(movie, details);
+              const replyMarkup = buildButtons(movie, query, index, results.length);
+              
+              const hasPhoto = !!(message.photo || message.document);
+              if (hasPhoto && movie.poster_path) {
+                await sendTelegram('editMessageMedia', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  media: {
+                    type: 'photo',
+                    media: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown'
+                  },
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('editMessageText', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  text: caption,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              }
+            }
+          }
+
+          // Action "s" -> Find Similar Movies trigger
+          if (action === 's') {
+            const tmdbId = parts[1];
+            const results = await getSimilarMovies(tmdbId);
+            if (results && results.length > 0) {
+              const movie = results[0];
+              const details = await getMovieDetails(movie.id);
+              const caption = `🎬 **SIMILAR RECOMMENDATION**\n\n` + buildMovieCard(movie, details);
+              const replyMarkup = buildButtons(movie, '', 0, results.length, tmdbId);
+              
+              const hasPhoto = !!(message.photo || message.document);
+              if (hasPhoto && movie.poster_path) {
+                await sendTelegram('editMessageMedia', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  media: {
+                    type: 'photo',
+                    media: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown'
+                  },
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('editMessageText', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  text: caption,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              }
+            } else {
+              await sendTelegram('answerCallbackQuery', {
+                callback_query_id: callbackQueryId,
+                text: '❌ No similar movies found for this title.',
+                show_alert: true
+              });
+            }
+          }
+
+          // Action "ps" -> Similar movies pagination
+          if (action === 'ps') {
+            const tmdbId = parts[1];
+            const index = parseInt(parts[2], 10);
+            const results = await getSimilarMovies(tmdbId);
+            if (results && results[index]) {
+              const movie = results[index];
+              const details = await getMovieDetails(movie.id);
+              const caption = `🎬 **SIMILAR RECOMMENDATION**\n\n` + buildMovieCard(movie, details);
+              const replyMarkup = buildButtons(movie, '', index, results.length, tmdbId);
+              
+              const hasPhoto = !!(message.photo || message.document);
+              if (hasPhoto && movie.poster_path) {
+                await sendTelegram('editMessageMedia', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  media: {
+                    type: 'photo',
+                    media: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown'
+                  },
+                  reply_markup: replyMarkup
+                });
+              } else {
+                await sendTelegram('editMessageText', {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  text: caption,
+                  parse_mode: 'markdown',
+                  reply_markup: replyMarkup
+                });
+              }
+            }
+          }
+
+          await sendTelegram('answerCallbackQuery', { callback_query_id: callbackQueryId });
+          return res.status(200).send('OK');
+        }
+
+        // 3. Handle Chat Message Updates (POST)
         if (update && update.message && update.message.text) {
           const chatId = update.message.chat.id;
           const text = update.message.text.trim();
@@ -273,7 +558,7 @@ export default async function handler(req, res) {
               `• /genres - List genres\n\n` +
               `📢 **Channel Posting:**\n` +
               `• /post @channel Movie Name - Post card to a channel\n` +
-              `• /autopost on @channel - Auto-post trending movies every 4 hours\n` +
+              `• /autopost on @channel - Auto-post trending movies daily\n` +
               `• /autopost off - Disable auto-posting\n` +
               `• /schedule - Show scheduled auto-post status\n\n` +
               `🔍 *Or just type any movie name directly to search!*`;
@@ -304,7 +589,7 @@ export default async function handler(req, res) {
           } else if (text === '/schedule') {
             await sendTelegram('sendMessage', {
               chat_id: chatId,
-              text: `📅 **Auto-Post Schedule Info:**\n\n• **Status:** ${global.autopostEnabled ? '✅ Active' : '❌ Inactive'}\n• **Target Channel:** ${global.autopostChannel || 'None'}\n• **Interval:** Every 4 hours (Vercel Cron Trigger)`,
+              text: `📅 **Auto-Post Schedule Info:**\n\n• **Status:** ${global.autopostEnabled ? '✅ Active' : '❌ Inactive'}\n• **Target Channel:** ${global.autopostChannel || 'None'}\n• **Interval:** Daily (Vercel Cron Trigger)`,
               parse_mode: 'markdown'
             });
           } else if (text.startsWith('/autopost')) {
@@ -314,7 +599,7 @@ export default async function handler(req, res) {
               global.autopostEnabled = true;
               await sendTelegram('sendMessage', {
                 chat_id: chatId,
-                text: `✅ Autopost enabled for channel **${global.autopostChannel}**. Trending movies will be posted every 4 hours.`,
+                text: `✅ Autopost enabled for channel **${global.autopostChannel}**. Trending movies will be posted daily.`,
                 parse_mode: 'markdown'
               });
             } else if (parts.length >= 2 && parts[1] === 'off') {
@@ -350,20 +635,12 @@ export default async function handler(req, res) {
                 });
               } else {
                 const movie = results[0];
-                const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
-                const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
-                const movieGenres = (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
-                let overview = movie.overview || 'No description available.';
-                if (overview.length > 300) {
-                  overview = overview.substring(0, 297) + '...';
-                }
-                
-                const caption = `🎬 **${movie.title} (${year})**\n⭐ Rating: ${rating}/10\n🎭 Genres: ${movieGenres}\n\n📝 ${overview}`;
-                const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+                const details = await getMovieDetails(movie.id);
+                const caption = buildMovieCard(movie, details);
                 const replyMarkup = {
                   inline_keyboard: [
                     [
-                      { text: '▶️ Watch on MovieNest', url: watch_url }
+                      { text: '▶️ Watch on MovieNest', url: `https://www.movienest.app/movie/${movie.id}` }
                     ]
                   ]
                 };
@@ -415,41 +692,27 @@ export default async function handler(req, res) {
                   text: `❌ No movies found for "${query}". Try another movie name.`
                 });
               } else {
-                for (const movie of results.slice(0, 3)) {
-                  const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
-                  const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
-                  const movieGenres = (movie.genre_ids || []).map(id => GENRES[id]).filter(Boolean).slice(0, 3).join(', ') || 'N/A';
-                  let overview = movie.overview || 'No description available.';
-                  if (overview.length > 300) {
-                    overview = overview.substring(0, 297) + '...';
-                  }
-                  
-                  const caption = `🎬 **${movie.title} (${year})**\n⭐ Rating: ${rating}/10\n🎭 Genres: ${movieGenres}\n\n📝 ${overview}`;
-                  const watch_url = `https://www.movienest.app/movie/${movie.id}`;
-                  const replyMarkup = {
-                    inline_keyboard: [
-                      [
-                        { text: '▶️ Watch on MovieNest', url: watch_url }
-                      ]
-                    ]
-                  };
-                  
-                  if (movie.poster_path) {
-                    await sendTelegram('sendPhoto', {
-                      chat_id: chatId,
-                      photo: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-                      caption: caption,
-                      parse_mode: 'markdown',
-                      reply_markup: replyMarkup
-                    });
-                  } else {
-                    await sendTelegram('sendMessage', {
-                      chat_id: chatId,
-                      text: caption,
-                      parse_mode: 'markdown',
-                      reply_markup: replyMarkup
-                    });
-                  }
+                // Send first search result with pagination buttons
+                const movie = results[0];
+                const details = await getMovieDetails(movie.id);
+                const caption = buildMovieCard(movie, details);
+                const replyMarkup = buildButtons(movie, query, 0, results.length);
+                
+                if (movie.poster_path) {
+                  await sendTelegram('sendPhoto', {
+                    chat_id: chatId,
+                    photo: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+                    caption: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
+                } else {
+                  await sendTelegram('sendMessage', {
+                    chat_id: chatId,
+                    text: caption,
+                    parse_mode: 'markdown',
+                    reply_markup: replyMarkup
+                  });
                 }
               }
             }
