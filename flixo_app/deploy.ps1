@@ -2,7 +2,7 @@
 # Run this script using: .\deploy.ps1
 
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "     MOVIENEST RELEASE AUTOMATOR         " -ForegroundColor Cyan
+Write-Host "     MOVIENEST ALL-IN-ONE RELEASE        " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
 # 1. Ask for the new version number
@@ -26,65 +26,89 @@ if (Test-Path $pubspecPath) {
     Write-Host "✗ Could not find pubspec.yaml!" -ForegroundColor Red
 }
 
-# 3. Update web/version.json
-$webVersionPath = "web/version.json"
-if (Test-Path $webVersionPath) {
-    $content = Get-Content $webVersionPath -Raw
-    $updatedContent = $content -replace '"latest_version":\s*"[^"]*"', "`"latest_version`": `"$newVersion`""
-    Set-Content $webVersionPath $updatedContent
-    Write-Host "✓ Updated web/version.json" -ForegroundColor Green
-}
-
-# 4. Update public/version.json
-$publicVersionPath = "public/version.json"
-if (Test-Path $publicVersionPath) {
-    $content = Get-Content $publicVersionPath -Raw
-    $updatedContent = $content -replace '"latest_version":\s*"[^"]*"', "`"latest_version`": `"$newVersion`""
-    Set-Content $publicVersionPath $updatedContent
-    Write-Host "✓ Updated public/version.json" -ForegroundColor Green
-}
-
-# 5. Optional Android Build
-Write-Host ""
-$buildApk = Read-Host "Do you want to compile the Android APK? (y/n)"
-if ($buildApk -eq 'y' -or $buildApk -eq 'yes') {
-    Write-Host "`nCompiling Android APK (Release)..." -ForegroundColor Yellow
-    flutter build apk --release --target-platform=android-arm64
-    
-    $apkSource = "build/app/outputs/flutter-apk/app-release.apk"
-    $apkDestination = "public/downloads/movienest.apk"
-    
-    if (Test-Path $apkSource) {
-        # Create downloads folder in public if missing
-        if (!(Test-Path "public/downloads")) {
-            New-Item -ItemType Directory -Path "public/downloads" -Force | Out-Null
-        }
-        Copy-Item -Path $apkSource -Destination $apkDestination -Force
-        Write-Host "✓ Copied new APK to public/downloads/movienest.apk" -ForegroundColor Green
-    } else {
-        Write-Host "✗ APK compilation failed or output not found!" -ForegroundColor Red
+# Helper to update JSON configs
+function Update-VersionJson($path, $ver) {
+    if (Test-Path $path) {
+        $json = Get-Content $path | ConvertFrom-Json
+        $json.latest_version = $ver
+        $json | ConvertTo-Json | Set-Content $path
+        Write-Host "✓ Updated $path" -ForegroundColor Green
     }
 }
 
-# 6. Optional Web Build & Vercel Deploy
-Write-Host ""
-$deployWeb = Read-Host "Do you want to compile Web and Deploy to Vercel? (y/n)"
-if ($deployWeb -eq 'y' -or $deployWeb -eq 'yes') {
-    Write-Host "`nCompiling Flutter Web..." -ForegroundColor Yellow
-    flutter build web --release
-    
-    Write-Host "`nSyncing compiled files to public folder..." -ForegroundColor Yellow
-    Copy-Item -Path build/web/* -Destination public/ -Recurse -Force
-    
-    # Force ensure the updated version.json is copied over
-    Copy-Item -Path web/version.json -Destination public/version.json -Force
-    
-    Write-Host "`nDeploying to Vercel Production..." -ForegroundColor Yellow
-    vercel --prod
-    
-    Write-Host "`n✓ Deploy Completed Successfully!" -ForegroundColor Green
+# 3. Update web/version.json & public/version.json
+Update-VersionJson "web/version.json" $newVersion
+Update-VersionJson "public/version.json" $newVersion
+
+# 4. Build Android APK
+Write-Host "`n[1/3] Compiling Android APK (Release)..." -ForegroundColor Yellow
+flutter build apk --release --target-platform=android-arm64
+
+$apkSource = "build/app/outputs/flutter-apk/app-release.apk"
+if (Test-Path $apkSource) {
+    Copy-Item -Path $apkSource -Destination "web/downloads/movienest.apk" -Force
+    Copy-Item -Path $apkSource -Destination "public/downloads/movienest.apk" -Force
+    Write-Host "✓ Android APK compiled and copied successfully!" -ForegroundColor Green
+} else {
+    Write-Host "✗ Android build failed!" -ForegroundColor Red
+    Exit
 }
 
-Write-Host "`n=========================================" -ForegroundColor Cyan
-Write-Host "          RELEASE PROCESS DONE           " -ForegroundColor Cyan
-Write-Host "=========================================" -ForegroundColor Cyan
+# 5. Build Windows App
+Write-Host "`n[2/3] Compiling Windows App (Release)..." -ForegroundColor Yellow
+flutter build windows --release
+
+$winSourceDir = "build/windows/x64/runner/Release"
+$winDestDir = "build/windows/x64/runner/movienest-windows"
+
+if (Test-Path $winSourceDir) {
+    # Copy files
+    Copy-Item -Path "$winSourceDir/*" -Destination $winDestDir -Recurse -Force
+    
+    # Rename executable
+    $oldExe = "$winDestDir/movienest.exe"
+    $newExe = "$winDestDir/flixo_app.exe"
+    if (Test-Path $oldExe) {
+        Remove-Item -Path $oldExe -Force
+    }
+    if (Test-Path $newExe) {
+        Rename-Item -Path $newExe -NewName "movienest.exe" -Force
+    }
+    Write-Host "✓ Windows files compiled and prepared in movienest-windows!" -ForegroundColor Green
+} else {
+    Write-Host "✗ Windows build failed!" -ForegroundColor Red
+    Exit
+}
+
+# 6. Prompt to run Inno Setup
+Write-Host "`n=========================================" -ForegroundColor Yellow
+Write-Host "ACTION REQUIRED: Open Inno Setup and compile 'movienest.iss' now." -ForegroundColor Yellow
+Write-Host "=========================================" -ForegroundColor Yellow
+
+$innoComplete = ""
+while ($innoComplete -ne "y" -and $innoComplete -ne "yes") {
+    $innoComplete = Read-Host "Has the Inno Setup compilation completed successfully? (y/n)"
+    $innoComplete = $innoComplete.ToLower().Trim()
+    if ($innoComplete -eq "n" -or $innoComplete -eq "no") {
+        Write-Host "Please compile the installer first before proceeding." -ForegroundColor Red
+    }
+}
+
+# 7. Copy Installer & Deploy to Vercel
+$setupPath = "web/downloads/movienest-setup.exe"
+$setupDest = "public/downloads/movienest-setup.exe"
+
+if (Test-Path $setupPath) {
+    Copy-Item -Path $setupPath -Destination $setupDest -Force
+    Write-Host "✓ Copied Windows Setup Installer to public folder." -ForegroundColor Green
+} else {
+    Write-Host "✗ Could not find compiled setup installer at $setupPath!" -ForegroundColor Red
+    Exit
+}
+
+Write-Host "`n[3/3] Deploying live to Vercel Production..." -ForegroundColor Yellow
+vercel --prod
+
+Write-Host "`n=========================================" -ForegroundColor Green
+Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
+Write-Host "=========================================" -ForegroundColor Green
