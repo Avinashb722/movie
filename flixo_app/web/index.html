@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -26,14 +27,16 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.movienest.app/">
   <meta property="og:title" content="MovieNest - Stream Movies & Live TV">
-  <meta property="og:description" content="Watch unlimited movies, TV shows, and live channels directly in your browser.">
+  <meta property="og:description"
+    content="Watch unlimited movies, TV shows, and live channels directly in your browser.">
   <meta property="og:image" content="https://www.movienest.app/icons/Icon-512.png">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://www.movienest.app/">
   <meta property="twitter:title" content="MovieNest - Stream Movies & Live TV">
-  <meta property="twitter:description" content="Watch unlimited movies, TV shows, and live channels directly in your browser.">
+  <meta property="twitter:description"
+    content="Watch unlimited movies, TV shows, and live channels directly in your browser.">
   <meta property="twitter:image" content="https://www.movienest.app/icons/Icon-512.png">
 
   <!-- iOS meta tags & icons -->
@@ -43,19 +46,19 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>MovieNest - Stream Movies & Live TV</title>
   <link rel="manifest" href="manifest.json">
 
   <script>
-    window.updateSeoMeta = function(title, description, canonicalUrl, ogImage, schemaJson) {
+    window.updateSeoMeta = function (title, description, canonicalUrl, ogImage, schemaJson) {
       document.title = title;
-      
+
       // Update meta description
       var descMeta = document.querySelector('meta[name="description"]');
       if (descMeta) descMeta.setAttribute('content', description);
-      
+
       // Update canonical link
       var canonicalLink = document.querySelector('link[rel="canonical"]');
       if (canonicalLink) {
@@ -66,7 +69,7 @@
         canonicalLink.setAttribute('href', canonicalUrl);
         document.head.appendChild(canonicalLink);
       }
-      
+
       // Update Open Graph tags
       var ogTitle = document.querySelector('meta[property="og:title"]');
       if (ogTitle) ogTitle.setAttribute('content', title);
@@ -76,7 +79,7 @@
       if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
       var ogImg = document.querySelector('meta[property="og:image"]');
       if (ogImg) ogImg.setAttribute('content', ogImage);
-      
+
       // Update Twitter tags
       var twTitle = document.querySelector('meta[property="twitter:title"]');
       if (twTitle) twTitle.setAttribute('content', title);
@@ -86,7 +89,7 @@
       if (twUrl) twUrl.setAttribute('content', canonicalUrl);
       var twImg = document.querySelector('meta[property="twitter:image"]');
       if (twImg) twImg.setAttribute('content', ogImage);
-      
+
       // Update JSON-LD Structured Data Schema
       var oldSchema = document.getElementById('jsonld-schema');
       if (oldSchema) oldSchema.remove();
@@ -114,7 +117,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: #ffffff;
     }
-    
+
     .loading-container {
       display: flex;
       flex-direction: column;
@@ -133,7 +136,8 @@
     }
 
     .flixo-logo span {
-      color: #ffc107; /* AppColors.accent */
+      color: #ffc107;
+      /* AppColors.accent */
       text-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
     }
 
@@ -147,7 +151,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     @keyframes pulse {
@@ -155,7 +161,13 @@
       50% { opacity: 1; transform: scale(1.02); }
     }
   </style>
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
+
 <body>
   <div class="loading-container" id="loading-indicator">
     <div class="flixo-logo">MovieNest<span>.</span></div>
@@ -164,7 +176,8 @@
 
   <script>
     window.flutterWebRenderer = "html";
-    {{flutter_bootstrap_js}}
+    { { flutter_bootstrap_js } }
   </script>
 </body>
+
 </html>
