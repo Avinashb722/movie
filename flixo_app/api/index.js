@@ -241,6 +241,10 @@ function buildButtons(movie, query, index, totalResults, similarId = null) {
   const inline_keyboard = [
     [
       { text: '▶️ Watch on MovieNest', url: watch_url }
+    ],
+    [
+      { text: '❓ How to Watch', callback_data: 'info:watch' },
+      { text: '❓ How to Download', callback_data: 'info:download' }
     ]
   ];
 
@@ -527,6 +531,28 @@ export default async function handler(req, res) {
                 });
               }
             }
+          }
+
+          // Action "info" -> Show details popups on how to watch/download
+          if (action === 'info') {
+            const topic = parts[1];
+            let infoText = '';
+            if (topic === 'watch') {
+              infoText = '📺 HOW TO WATCH MOVIENEST:\n\n' +
+                         '1. Tap the "▶️ Watch on MovieNest" button on the card.\n' +
+                         '2. The movie link will open in your browser or automatically launch your MovieNest Mobile App if installed.\n' +
+                         '3. Press the "Play" button on the streaming player to start watching instantly!';
+            } else if (topic === 'download') {
+              infoText = '📥 HOW TO DOWNLOAD MOVIENEST APP:\n\n' +
+                         '• For Android Mobile: Open www.movienest.app on your phone browser and tap the "Download Android App" banner at the top.\n' +
+                         '• For Windows Desktop: Open www.movienest.app on your computer and tap the "Download Windows App" installer button.';
+            }
+            await sendTelegram('answerCallbackQuery', {
+              callback_query_id: callbackQueryId,
+              text: infoText,
+              show_alert: true
+            });
+            return res.status(200).send('OK');
           }
 
           // Action "lang" -> Browse movies by language code
