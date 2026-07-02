@@ -10,6 +10,10 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file_plus/open_file_plus.dart';
+import 'dart:io';
 import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/discover_screen.dart';
@@ -198,41 +202,154 @@ class _MainNavState extends State<MainNav> {
 
       if (localVersion != serverData['latest_version']) {
         if (!mounted) return;
+
+        // Determine platform-specific download url
+        String? downloadUrl;
+        String fileExtension = '';
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          downloadUrl = serverData['download_url_android'] as String?;
+          fileExtension = 'apk';
+        } else if (defaultTargetPlatform == TargetPlatform.windows) {
+          downloadUrl = serverData['download_url_windows'] as String?;
+          fileExtension = 'exe';
+        }
+
+        // Fallback
+        downloadUrl ??= serverData['download_url'] as String?;
+        if (fileExtension.isEmpty) {
+          fileExtension = downloadUrl?.split('.').last.split('?').first ?? 'apk';
+        }
+
+        if (downloadUrl == null || downloadUrl.isEmpty) return;
+
         showDialog(
           context: context,
-          barrierDismissible: !(serverData['force_update'] as bool? ?? false),
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.card,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Update Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: Text(
-              'A new version (${serverData['latest_version']}) of MovieNest is available. Would you like to update now?',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              if (!(serverData['force_update'] as bool? ?? false))
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Later', style: TextStyle(color: Colors.white54)),
-                ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  try {
-                    launchUrl(Uri.parse(serverData['download_url'] as String? ?? 'https://www.movienest.app'), mode: LaunchMode.externalApplication);
-                  } catch (_) {}
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('Update Now', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          barrierDismissible: false,
+          builder: (context) => PopScope(
+            canPop: false,
+            child: AlertDialog(
+              backgroundColor: AppColors.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Update Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Text(
+                'A new version (${serverData['latest_version']}) of MovieNest is available. You must update the app to continue using it.',
+                style: const TextStyle(color: Colors.white70),
               ),
-            ],
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showDownloadProgressDialog(downloadUrl!, fileExtension);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Update Now', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         );
       }
     } catch (_) {}
+  }
+
+  void _showDownloadProgressDialog(String url, String fileExtension) {
+    double progress = 0.0;
+    bool isDownloading = true;
+    String statusText = 'Downloading update...';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return PopScope(
+          canPop: false,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              if (isDownloading) {
+                isDownloading = false; // Trigger once
+                () async {
+                  try {
+                    final tempDir = await getTemporaryDirectory();
+                    final savePath = '${tempDir.path}/update.$fileExtension';
+
+                    final dio = Dio();
+                    await dio.download(
+                      url,
+                      savePath,
+                      onReceiveProgress: (received, total) {
+                        if (total != -1) {
+                          setState(() {
+                            progress = received / total;
+                          });
+                        }
+                      },
+                    );
+
+                    setState(() {
+                      statusText = 'Installing update...';
+                      progress = 1.0;
+                    });
+
+                    if (fileExtension == 'exe') {
+                      await Process.start(savePath, [], mode: ProcessStartMode.detached);
+                      SystemNavigator.pop(); // Exit app
+                    } else if (fileExtension == 'apk') {
+                      final result = await OpenFile.open(savePath);
+                      debugPrint('[AppUpdate] APK Install triggered: ${result.message}');
+                      setState(() {
+                        statusText = 'Installation ready. Click below if it didn\'t open.';
+                      });
+                    }
+                  } catch (e) {
+                    setState(() {
+                      statusText = 'Error downloading update: $e';
+                    });
+                  }
+                }();
+              }
+
+              return AlertDialog(
+                backgroundColor: AppColors.card,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: Text(statusText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.white12,
+                      color: AppColors.accent,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${(progress * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                actions: [
+                  if (statusText.startsWith('Error') || statusText.startsWith('Installation'))
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showDownloadProgressDialog(url, fileExtension); // Retry
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Retry', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   void _handleInitialUrlRoute() {
