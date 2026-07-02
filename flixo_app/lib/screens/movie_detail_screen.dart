@@ -1031,348 +1031,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    if (twoEmbedStreams.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: Text(
-                          'Direct Web Streaming (2Embed)',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      ...twoEmbedStreams.map((s) {
-                        final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
-                        return ListTile(
-                          leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
-                          title: Text(
-                            '2Embed ${s.resolution}p$langSuffix',
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: const Text(
-                            'Direct HLS/CDN Stream',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                          onTap: () {
-                            if (isDownloadFlow) {
-                              Navigator.pop(context);
-                            }
-                            final url = s.url;
-                            debugPrint('[MovieDetail] Selected stream: 2Embed ${s.resolution}p');
-                            debugPrint('[MovieDetail] URL: $url');
-                            if (url.trim().isEmpty) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
-                              );
-                              return;
-                            }
-                            if (isDownloadFlow) {
-                              if (kIsWeb) {
-                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                return;
-                              }
-                              DownloadService.instance.addDownload(
-                                m.title,
-                                '2h 00m',
-                                '${s.resolution}p',
-                                m.posterUrl,
-                                downloadUrl: url,
-                                movieBoxSubjectId: s.subjectId,
-                                movieBoxDetailPath: s.detailPath,
-                              );
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('"${m.title}" added to downloads queue!'),
-                                  backgroundColor: AppColors.surface,
-                                  action: SnackBarAction(
-                                    label: 'View',
-                                    textColor: AppColors.accent,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        this.context,
-                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                            HistoryService.instance.addToHistory(m);
-                            Navigator.push(
-                              this.context,
-                              MaterialPageRoute(
-                                builder: (_) => PlayerScreen(
-                                  movie: m,
-                                  directUrl: url,
-                                  referer: s.referer,
-                                  resolution: s.resolution,
-                                  subjectId: s.subjectId,
-                                  detailPath: s.detailPath,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      }),
-                    ],
-                    if (movieBoxStreams.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: Text(
-                          'Direct Web Streaming (Recommended)',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      ...movieBoxStreams.map((s) {
-                        final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
-                        return ListTile(
-                          leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
-                          title: Text(
-                            'MovieBox ${s.resolution}p$langSuffix',
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            'Direct HTTP Stream - ${s.size.isNotEmpty ? s.size : "Unknown size"}',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                          onTap: () {
-                            if (isDownloadFlow) {
-                              Navigator.pop(context);
-                            }
-                            final url = s.url;
-                            debugPrint('[MovieDetail] Selected stream: MovieBox ${s.resolution}p');
-                            debugPrint('[MovieDetail] URL: $url');
-                            if (url.trim().isEmpty) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
-                              );
-                              return;
-                            }
-                            if (isDownloadFlow) {
-                              if (kIsWeb) {
-                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                return;
-                              }
-                              DownloadService.instance.addDownload(
-                                m.title,
-                                '2h 00m',
-                                '${s.resolution}p',
-                                m.posterUrl,
-                                downloadUrl: url,
-                                movieBoxSubjectId: s.subjectId,
-                                movieBoxDetailPath: s.detailPath,
-                              );
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('"${m.title}" added to downloads queue!'),
-                                  backgroundColor: AppColors.surface,
-                                  action: SnackBarAction(
-                                    label: 'View',
-                                    textColor: AppColors.accent,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        this.context,
-                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                            HistoryService.instance.addToHistory(m);
-                            Navigator.push(
-                              this.context,
-                              MaterialPageRoute(
-                                builder: (_) => PlayerScreen(
-                                  movie: m,
-                                  directUrl: url,
-                                  referer: s.referer,
-                                  resolution: s.resolution,
-                                  subjectId: s.subjectId,
-                                  detailPath: s.detailPath,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      }),
-                    ],
-                    if (archives.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: Text(
-                          'Direct Web Streaming (Archive)',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      ...archives.map((a) {
-                        final langSuffix = a.language.isNotEmpty ? ' [${a.language}]' : '';
-                        return ListTile(
-                          leading: const Icon(Icons.play_circle_filled, color: Colors.blueAccent),
-                          title: Text(
-                            '${a.label}$langSuffix',
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: const Text(
-                            'Direct HLS/MP4 CDN Link',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                          onTap: () {
-                            if (isDownloadFlow) {
-                              Navigator.pop(context);
-                            }
-                            final url = a.url;
-                            debugPrint('[MovieDetail] Selected stream: ${a.label}');
-                            debugPrint('[MovieDetail] URL: $url');
-                            if (url.trim().isEmpty) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
-                              );
-                              return;
-                            }
-                            if (isDownloadFlow) {
-                              if (kIsWeb) {
-                                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                return;
-                              }
-                              DownloadService.instance.addDownload(
-                                m.title,
-                                '2h 00m',
-                                'Archive Stream',
-                                m.posterUrl,
-                                downloadUrl: url,
-                              );
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('"${m.title}" added to downloads queue!'),
-                                  backgroundColor: AppColors.surface,
-                                  action: SnackBarAction(
-                                    label: 'View',
-                                    textColor: AppColors.accent,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        this.context,
-                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                            HistoryService.instance.addToHistory(m);
-                            Navigator.push(
-                              this.context,
-                              MaterialPageRoute(
-                                builder: (_) => PlayerScreen(
-                                  movie: m,
-                                  directUrl: url,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      }),
-                    ],
-                    if (torrents.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: Text(
-                          'P2P Torrent Streaming (WebRTC)',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      ...torrents.map((t) {
-                        final titleLine = t.title.split('\n').first;
-                        return ListTile(
-                          leading: const Icon(Icons.bolt, color: Colors.greenAccent),
-                          title: Text(
-                            t.quality,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            '$titleLine (${t.size})',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                          trailing: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 18),
-                          onTap: () {
-                            final bool isMobile = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
-                            if (isDownloadFlow || isMobile) {
-                              Navigator.pop(context);
-                            }
-                            if (isMobile) {
-                              Clipboard.setData(ClipboardData(text: t.magnetUri));
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Magnet link copied! Paste it in external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent) to stream or download.'),
-                                  duration: Duration(seconds: 5),
-                                  backgroundColor: AppColors.surface,
-                                ),
-                              );
-                              return;
-                            }
-                            if (isDownloadFlow) {
-                              if (kIsWeb) {
-                                launchUrl(Uri.parse(t.magnetUri), mode: LaunchMode.externalApplication);
-                                return;
-                              }
-                              if (t.magnetUri.isEmpty) {
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(content: Text('Magnet link unavailable for download.'), backgroundColor: Colors.redAccent),
-                                );
-                                return;
-                              }
-                              DownloadService.instance.addDownload(
-                                m.title,
-                                '2h 00m',
-                                t.quality,
-                                m.posterUrl,
-                                magnetUri: t.magnetUri,
-                              );
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('"${m.title}" (${t.quality}) added to downloads queue!'),
-                                  backgroundColor: AppColors.surface,
-                                  action: SnackBarAction(
-                                    label: 'View',
-                                    textColor: AppColors.accent,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        this.context,
-                                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                            HistoryService.instance.addToHistory(m);
-                            Navigator.push(
-                              this.context,
-                              MaterialPageRoute(
-                                builder: (_) => PlayerScreen(
-                                  movie: m,
                                   directUrl: t.magnetUri,
                                 ),
                               ),
@@ -1389,6 +1047,372 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         );
       },
     );
+  }
+
+  List<Widget> _build2EmbedListItems(List<MovieBoxStream> twoEmbedStreams, Movie m, bool isDownloadFlow) {
+    if (twoEmbedStreams.isEmpty) return [];
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          'Direct Web Streaming (2Embed)',
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      ...twoEmbedStreams.map((s) {
+        final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
+        return ListTile(
+          leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
+          title: Text(
+            '2Embed ${s.resolution}p$langSuffix',
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text(
+            'Direct HLS/CDN Stream',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          onTap: () {
+            if (isDownloadFlow) {
+              Navigator.pop(context);
+            }
+            final url = s.url;
+            debugPrint('[MovieDetail] Selected stream: 2Embed ${s.resolution}p');
+            debugPrint('[MovieDetail] URL: $url');
+            if (url.trim().isEmpty) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
+              );
+              return;
+            }
+            if (isDownloadFlow) {
+              if (kIsWeb) {
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                return;
+              }
+              DownloadService.instance.addDownload(
+                m.title,
+                '2h 00m',
+                '${s.resolution}p',
+                m.posterUrl,
+                downloadUrl: url,
+                movieBoxSubjectId: s.subjectId,
+                movieBoxDetailPath: s.detailPath,
+              );
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text('"${m.title}" added to downloads queue!'),
+                  backgroundColor: AppColors.surface,
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: AppColors.accent,
+                    onPressed: () {
+                      Navigator.push(
+                        this.context,
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+              return;
+            }
+            HistoryService.instance.addToHistory(m);
+            Navigator.push(
+              this.context,
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  movie: m,
+                  directUrl: url,
+                  referer: s.referer,
+                  resolution: s.resolution,
+                  subjectId: s.subjectId,
+                  detailPath: s.detailPath,
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _buildMovieBoxListItems(List<MovieBoxStream> movieBoxStreams, Movie m, bool isDownloadFlow) {
+    if (movieBoxStreams.isEmpty) return [];
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          'Direct Web Streaming (Recommended)',
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      ...movieBoxStreams.map((s) {
+        final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
+        return ListTile(
+          leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
+          title: Text(
+            'MovieBox ${s.resolution}p$langSuffix',
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            'Direct HTTP Stream - ${s.size.isNotEmpty ? s.size : "Unknown size"}',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          onTap: () {
+            if (isDownloadFlow) {
+              Navigator.pop(context);
+            }
+            final url = s.url;
+            debugPrint('[MovieDetail] Selected stream: MovieBox ${s.resolution}p');
+            debugPrint('[MovieDetail] URL: $url');
+            if (url.trim().isEmpty) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
+              );
+              return;
+            }
+            if (isDownloadFlow) {
+              if (kIsWeb) {
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                return;
+              }
+              DownloadService.instance.addDownload(
+                m.title,
+                '2h 00m',
+                '${s.resolution}p',
+                m.posterUrl,
+                downloadUrl: url,
+                movieBoxSubjectId: s.subjectId,
+                movieBoxDetailPath: s.detailPath,
+              );
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text('"${m.title}" added to downloads queue!'),
+                  backgroundColor: AppColors.surface,
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: AppColors.accent,
+                    onPressed: () {
+                      Navigator.push(
+                        this.context,
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+              return;
+            }
+            HistoryService.instance.addToHistory(m);
+            Navigator.push(
+              this.context,
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  movie: m,
+                  directUrl: url,
+                  referer: s.referer,
+                  resolution: s.resolution,
+                  subjectId: s.subjectId,
+                  detailPath: s.detailPath,
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _buildArchiveListItems(List<ArchiveStream> archives, Movie m, bool isDownloadFlow) {
+    if (archives.isEmpty) return [];
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          'Alternative Free Servers',
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      ...archives.map((a) {
+        final langSuffix = a.language.isNotEmpty ? ' [${a.language}]' : '';
+        return ListTile(
+          leading: const Icon(Icons.play_circle_filled, color: Colors.blueAccent),
+          title: Text(
+            '${a.label}$langSuffix',
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text(
+            'Direct HLS/MP4 CDN Link',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          onTap: () {
+            if (isDownloadFlow) {
+              Navigator.pop(context);
+            }
+            final url = a.url;
+            debugPrint('[MovieDetail] Selected stream: ${a.label}');
+            debugPrint('[MovieDetail] URL: $url');
+            if (url.trim().isEmpty) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Stream unavailable'), backgroundColor: Colors.redAccent),
+              );
+              return;
+            }
+            if (isDownloadFlow) {
+              if (kIsWeb) {
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                return;
+              }
+              DownloadService.instance.addDownload(
+                m.title,
+                '2h 00m',
+                'Archive Stream',
+                m.posterUrl,
+                downloadUrl: url,
+              );
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text('"${m.title}" added to downloads queue!'),
+                  backgroundColor: AppColors.surface,
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: AppColors.accent,
+                    onPressed: () {
+                      Navigator.push(
+                        this.context,
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+              return;
+            }
+            HistoryService.instance.addToHistory(m);
+            Navigator.push(
+              this.context,
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  movie: m,
+                  directUrl: url,
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _buildTorrentListItems(List<TorrentStream> torrents, Movie m, bool isDownloadFlow) {
+    if (torrents.isEmpty) return [];
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          'Torrents & Magnet Links (High Quality)',
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      ...torrents.map((t) {
+        final titleLine = t.title.split('\n').first;
+        return ListTile(
+          leading: const Icon(Icons.bolt, color: Colors.greenAccent),
+          title: Text(
+            t.quality,
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            '$titleLine (${t.size})',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          trailing: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 18),
+          onTap: () {
+            final bool isMobile = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
+            if (isDownloadFlow || isMobile) {
+              Navigator.pop(context);
+            }
+            if (isMobile) {
+              Clipboard.setData(ClipboardData(text: t.magnetUri));
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(
+                  content: Text('Magnet link copied! Paste it in external torrent apps (like uTorrent, Flud, 1DM, LibreTorrent) to stream or download.'),
+                  duration: Duration(seconds: 5),
+                  backgroundColor: AppColors.surface,
+                ),
+              );
+              return;
+            }
+            if (isDownloadFlow) {
+              if (kIsWeb) {
+                launchUrl(Uri.parse(t.magnetUri), mode: LaunchMode.externalApplication);
+                return;
+              }
+              if (t.magnetUri.isEmpty) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(content: Text('Magnet link unavailable for download.'), backgroundColor: Colors.redAccent),
+                );
+                return;
+              }
+              DownloadService.instance.addDownload(
+                m.title,
+                '2h 00m',
+                t.quality,
+                m.posterUrl,
+                magnetUri: t.magnetUri,
+              );
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text('"${m.title}" (${t.quality}) added to downloads queue!'),
+                  backgroundColor: AppColors.surface,
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: AppColors.accent,
+                    onPressed: () {
+                      Navigator.push(
+                        this.context,
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+              return;
+            }
+            HistoryService.instance.addToHistory(m);
+            Navigator.push(
+              this.context,
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  movie: m,
+                  directUrl: t.magnetUri,
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    ];
   }
 
   void _startDownloadFlow() {
