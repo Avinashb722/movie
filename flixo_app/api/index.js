@@ -195,8 +195,16 @@ function buildMovieCard(movie, details) {
          `📝 *${overview}*`;
 }
 
+function slugify(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
 function buildButtons(movie, query, index, totalResults, similarId = null) {
-  const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+  const watch_url = `https://www.movienest.app/movie/${slugify(movie.title)}`;
   const inline_keyboard = [
     [
       { text: '▶️ Watch on MovieNest', url: watch_url }
@@ -338,7 +346,7 @@ export default async function handler(req, res) {
             }
             
             const caption = `🎬 **${movie.title} (${year})**\n⭐ Rating: ${rating}/10\n🎭 Genres: ${movieGenres}\n\n📝 ${overview}`;
-            const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+            const watch_url = `https://www.movienest.app/movie/${slugify(movie.title)}`;
             const replyMarkup = {
               inline_keyboard: [
                 [
@@ -393,7 +401,7 @@ export default async function handler(req, res) {
               const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
               const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
               const caption = buildMovieCard(movie, null);
-              const watch_url = `https://www.movienest.app/movie/${movie.id}`;
+              const watch_url = `https://www.movienest.app/movie/${slugify(movie.title)}`;
               
               return {
                 type: 'article',
@@ -663,7 +671,7 @@ export default async function handler(req, res) {
                 const replyMarkup = {
                   inline_keyboard: [
                     [
-                      { text: '▶️ Watch on MovieNest', url: `https://www.movienest.app/movie/${movie.id}` }
+                      { text: '▶️ Watch on MovieNest', url: `https://www.movienest.app/movie/${slugify(movie.title)}` }
                     ]
                   ]
                 };
