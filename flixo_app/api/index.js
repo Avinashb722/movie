@@ -538,19 +538,23 @@ export default async function handler(req, res) {
             const topic = parts[1];
             let infoText = '';
             if (topic === 'watch') {
-              infoText = '📺 HOW TO WATCH MOVIENEST:\n\n' +
-                         '1. Tap the "▶️ Watch on MovieNest" button on the card.\n' +
-                         '2. The movie link will open in your browser or automatically launch your MovieNest Mobile App if installed.\n' +
-                         '3. Press the "Play" button on the streaming player to start watching instantly!';
+              infoText = '📺 **How to Watch on MovieNest:**\n\n' +
+                         '1️⃣ Tap the **"▶️ Watch on MovieNest"** button on the card.\n' +
+                         '2️⃣ The movie link will open in your browser or automatically launch your **MovieNest Mobile App** if installed.\n' +
+                         '3️⃣ Press the **Play** button on the streaming player to start watching instantly!';
             } else if (topic === 'download') {
-              infoText = '📥 HOW TO DOWNLOAD MOVIENEST APP:\n\n' +
-                         '• For Android Mobile: Open www.movienest.app on your phone browser and tap the "Download Android App" banner at the top.\n' +
-                         '• For Windows Desktop: Open www.movienest.app on your computer and tap the "Download Windows App" installer button.';
+              infoText = '📥 **How to Download MovieNest App:**\n\n' +
+                         '• 📱 **Android Mobile**: Open [movienest.app](https://www.movienest.app) on your phone browser and tap the **"Download Android App"** banner at the top.\n' +
+                         '• 💻 **Windows Desktop**: Open [movienest.app](https://www.movienest.app) on your computer and tap the **"Download Windows App"** installer button.';
             }
-            await sendTelegram('answerCallbackQuery', {
-              callback_query_id: callbackQueryId,
+            // Stop loading spinner immediately
+            await sendTelegram('answerCallbackQuery', { callback_query_id: callbackQueryId });
+            // Send instructions as a message
+            await sendTelegram('sendMessage', {
+              chat_id: chatId,
               text: infoText,
-              show_alert: true
+              parse_mode: 'markdown',
+              disable_web_page_preview: true
             });
             return res.status(200).send('OK');
           }
