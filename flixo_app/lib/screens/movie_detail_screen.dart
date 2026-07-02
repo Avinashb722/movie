@@ -708,6 +708,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     ),
                   ],
 
+                  // ── Help & Guide ────────────────────────
+                  _buildUserGuideSection(),
+                  const SizedBox(height: 12),
+
                   // ── More Like This ────────────────────────
                   if (_similar.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -1373,6 +1377,88 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   void _startDownloadFlow() {
     _startPlayFlow(isDownloadFlow: true);
+  }
+
+  Widget _buildUserGuideSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Help & Guide',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.play_circle_fill, color: AppColors.accent, size: 20),
+              title: const Text('How to Play', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    'Simply click the large orange Play button on the cover poster, or scroll down to the "Streaming Links" section below and tap any available link to start playing.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.link, color: AppColors.accent, size: 20),
+              title: const Text('Other Links (Alternative Servers)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    'Click the "Other Links" button on this page to scan and fetch all alternative streaming servers available for this title. You can view file sizes, resolutions, and select your preferred source to play or download.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.settings, color: AppColors.accent, size: 20),
+              title: const Text('How to Choose (Audio / Quality)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    'While the video is playing, tap the screen to reveal the controls. Click the gear icon ⚙️ in the top right corner to change the audio track (language), adjust the video resolution, or switch servers from the alternative link list (server icon 🗄️).',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.download_for_offline, color: AppColors.accent, size: 20),
+              title: const Text('How to Download', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    'Click the download icon 📥 in the top right corner of the player to launch the download manager and save the media directly to your device for offline viewing.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
