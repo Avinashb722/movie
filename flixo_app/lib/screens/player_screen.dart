@@ -102,6 +102,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _startControlsTimer() {
     _controlsTimer?.cancel();
+    if (_hasError || _loading) return; // Do not auto-hide when there is an error or while loading
     _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) {
         setState(() {
@@ -404,7 +405,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _loading = false;
       _hasError = true;
       _errorMessage = message;
+      _areControlsVisible = true;
     });
+    _controlsTimer?.cancel();
     
     // Automatically trigger the alternative servers sheet so user can choose another stream
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -1088,9 +1091,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           backgroundColor: Colors.black,
           body: Stack(children: [
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (PointerDownEvent event) {
                   setState(() {
                     _areControlsVisible = !_areControlsVisible;
                   });
