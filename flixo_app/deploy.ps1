@@ -133,8 +133,18 @@ if (Confirm-Step "Do you want to deploy live to Vercel now?") {
     }
     vercel --prod
 
-    # 9. Push compiled binaries to the public releases repository
-    Write-Host "`nPushing updated app binaries to public releases repository..." -ForegroundColor Yellow
+    Write-Host "`n=========================================" -ForegroundColor Green
+    Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
+    Write-Host "=========================================" -ForegroundColor Green
+} else {
+    Write-Host "Skipped Vercel deployment." -ForegroundColor DarkGray
+}
+
+# 9. Push compiled binaries to the public releases repository
+Write-Host "`n-----------------------------------------" -ForegroundColor DarkCyan
+Write-Host " [5/5] Push to GitHub Releases" -ForegroundColor DarkCyan
+Write-Host "-----------------------------------------" -ForegroundColor DarkCyan
+if (Confirm-Step "Do you want to push compiled binaries to the public releases repository?") {
     $releasesDir = "../movienest-releases"
     if (Test-Path $releasesDir) {
         Copy-Item -Path "public/downloads/*" -Destination $releasesDir -Force
@@ -148,11 +158,7 @@ if (Confirm-Step "Do you want to deploy live to Vercel now?") {
     } else {
         Write-Host "Warning: Public releases directory not found at $releasesDir. Skipped pushing binaries." -ForegroundColor Red
     }
-
-    Write-Host "`n=========================================" -ForegroundColor Green
-    Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
-    Write-Host "=========================================" -ForegroundColor Green
 } else {
-    Write-Host "Skipped Vercel deployment." -ForegroundColor DarkGray
+    Write-Host "Skipped pushing to GitHub Releases." -ForegroundColor DarkGray
 }
 
