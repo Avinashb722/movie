@@ -45,6 +45,18 @@ function Update-VersionJson($path, $ver) {
 Update-VersionJson "web/version.json" $newVersion
 Update-VersionJson "public/version.json" $newVersion
 
+# 3.1. Update movienest.iss version
+$issPath = "movienest.iss"
+if (Test-Path $issPath) {
+    $content = Get-Content $issPath -Raw
+    $updatedContent = $content -replace 'AppVersion=\d+\.\d+\.\d+', "AppVersion=$newVersion"
+    Set-Content $issPath $updatedContent
+    Write-Host "Updated movienest.iss version to $newVersion" -ForegroundColor Green
+} else {
+    Write-Host "Could not find movienest.iss!" -ForegroundColor Red
+}
+
+
 # 4. Build Flutter Web
 Write-Host "`n-----------------------------------------" -ForegroundColor DarkCyan
 Write-Host " [1/4] Flutter Web Build" -ForegroundColor DarkCyan
