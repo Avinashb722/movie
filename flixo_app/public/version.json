@@ -1,7 +1,7 @@
 {
     "latest_version":  "1.1.0",
-    "download_url":  "https://www.movienest.app/downloads/movienest.apk",
-    "download_url_android":  "https://www.movienest.app/downloads/movienest.apk",
-    "download_url_windows":  "https://www.movienest.app/downloads/movienest-setup.exe",
+    "download_url":  "https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest.apk",
+    "download_url_android":  "https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest.apk",
+    "download_url_windows":  "https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest-setup.exe",
     "force_update":  false
 }

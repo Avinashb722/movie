@@ -387,10 +387,10 @@ class _DownloadGrid extends StatelessWidget {
   const _DownloadGrid();
 
   static const _platforms = <_Platform>[
-    _Platform(Icons.android, 'ANDROID', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest.apk'),
+    _Platform(Icons.android, 'ANDROID', Color(0xFF3DDC84), 'https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest.apk'),
     _Platform(Icons.apple, 'IOS', Colors.white, ''),
-    _Platform(Icons.window, 'WINDOWS', Color(0xFF3DA9FC), 'https://www.movienest.app/downloads/movienest-setup.exe'),
-    _Platform(Icons.live_tv, 'ANDROID TV', Color(0xFF3DDC84), 'https://www.movienest.app/downloads/movienest-tv.apk'),
+    _Platform(Icons.window, 'WINDOWS', Color(0xFF3DA9FC), 'https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest-setup.exe'),
+    _Platform(Icons.live_tv, 'ANDROID TV', Color(0xFF3DDC84), 'https://raw.githubusercontent.com/Avinashb722/movienest-releases/main/movienest-tv.apk'),
   ];
 
   @override

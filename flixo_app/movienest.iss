@@ -1,6 +1,6 @@
 [Setup]
 AppName=MovieNest
-AppVersion=1.0.0
+AppVersion=1.1.0
 DefaultDirName={localappdata}\MovieNest
 DefaultGroupName=MovieNest
 UninstallDisplayIcon={app}\movienest.exe
@@ -32,3 +32,5 @@ begin
   Exec('taskkill', '/f /im movienest.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
+
+
