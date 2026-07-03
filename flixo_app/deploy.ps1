@@ -138,15 +138,4 @@ if (Confirm-Step "Do you want to deploy live to Vercel now?") {
 } else {
     Write-Host "Skipped Vercel deployment." -ForegroundColor DarkGray
 }
-        Copy-Item -Path $setupPath -Destination $setupDest -Force
-        Write-Host "Copied Windows Setup Installer to public folder." -ForegroundColor Green
-    } else {
-        Write-Host "No Windows installer found, deploying without it." -ForegroundColor DarkGray
-    }
-    vercel --prod
-    Write-Host "`n=========================================" -ForegroundColor Green
-    Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
-    Write-Host "=========================================" -ForegroundColor Green
-} else {
-    Write-Host "Skipped Vercel deployment." -ForegroundColor DarkGray
-}
+
