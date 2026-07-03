@@ -132,6 +132,23 @@ if (Confirm-Step "Do you want to deploy live to Vercel now?") {
         Write-Host "No Windows installer found, deploying without it." -ForegroundColor DarkGray
     }
     vercel --prod
+
+    # 9. Push compiled binaries to the public releases repository
+    Write-Host "`nPushing updated app binaries to public releases repository..." -ForegroundColor Yellow
+    $releasesDir = "../movienest-releases"
+    if (Test-Path $releasesDir) {
+        Copy-Item -Path "public/downloads/*" -Destination $releasesDir -Force
+        $currentDir = Get-Location
+        Set-Location $releasesDir
+        git add .
+        git commit -m "release: v$newVersion"
+        git push origin main --force
+        Set-Location $currentDir
+        Write-Host "Binaries successfully pushed to public releases repository!" -ForegroundColor Green
+    } else {
+        Write-Host "Warning: Public releases directory not found at $releasesDir. Skipped pushing binaries." -ForegroundColor Red
+    }
+
     Write-Host "`n=========================================" -ForegroundColor Green
     Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
     Write-Host "=========================================" -ForegroundColor Green
