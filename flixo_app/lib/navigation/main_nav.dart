@@ -782,7 +782,7 @@ class _MainNavState extends State<MainNav> {
                       padding: const EdgeInsets.all(16.0),
                       child: Center(
                         child: Text(
-                          _isCollapsed ? 'v1.0' : 'MovieNest Web v1.0.0\n© 2026 MovieNest Inc.',
+                          _isCollapsed ? 'v1.1' : 'MovieNest Web v1.1.0\n© 2026 MovieNest Inc.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.textMuted,

@@ -7,6 +7,7 @@
   "routes": [
     { "src": "/.well-known/assetlinks.json", "dest": "/public/assetlinks.json" },
     { "src": "/downloads/(.*)", "dest": "/public/downloads/$1" },
+    { "src": "/admin", "dest": "/public/admin.html" },
     { "src": "/privacy-policy", "dest": "/public/privacy-policy.html" },
     { "src": "/terms-of-service", "dest": "/public/terms-of-service.html" },
     { "src": "/api(.*)", "dest": "/api/index.js" },
@@ -18,6 +19,25 @@
     {
       "path": "/api/bot?cron=true",
       "schedule": "0 0 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/downloads/movienest.apk",
+      "headers": [
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"movienest.apk\""
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+        }
+      ]
     }
   ]
 }

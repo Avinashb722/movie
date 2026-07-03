@@ -313,6 +313,57 @@ function sendTelegram(method, payload) {
   });
 }
 
+// Firebase Realtime Database REST helpers (no npm needed)
+const FIREBASE_DB_URL = 'https://movie-de00a-default-rtdb.firebaseio.com';
+
+function getStreamingStatus() {
+  return new Promise((resolve) => {
+    https.get(`${FIREBASE_DB_URL}/config/enable_streaming.json`, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const val = JSON.parse(body.trim());
+          // Firebase returns null if key doesn't exist yet → default to true
+          resolve(val === null ? true : val !== false);
+        } catch (_) {
+          resolve(true);
+        }
+      });
+    }).on('error', () => resolve(true));
+  });
+}
+
+function setStreamingStatus(enabled) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(enabled);
+    const options = {
+      hostname: 'movie-de00a-default-rtdb.firebaseio.com',
+      port: 443,
+      path: '/config/enable_streaming.json',
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Firebase returned ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
 export default async function handler(req, res) {
   // Set CORS headers dynamically based on request origin to support authenticated requests
   const origin = req.headers.origin || '*';
@@ -322,9 +373,40 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Client-Info, Referer, Range, X-App-Referer, User-Agent, Origin');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length, Content-Type, x-user');
 
-  // Intercept Telegram Bot endpoint
+  // Intercept Remote Config Endpoint
   const host = req.headers.host || 'localhost';
   const urlObj = new URL(req.url, `https://${host}`);
+  
+  if (urlObj.pathname.startsWith('/api/config')) {
+    if (req.method === 'GET') {
+      const status = await getStreamingStatus();
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).send({ enable_streaming: status });
+    }
+    
+    if (req.method === 'POST') {
+      try {
+        const rawBody = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', chunk => data += chunk);
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        
+        const payload = JSON.parse(rawBody);
+        // Secure it with a strong password
+        if (payload.password !== 'MovieNestSecurePass9987!#') {
+          return res.status(403).send({ success: false, error: 'Unauthorized: Invalid password' });
+        }
+        
+        const enable = !!payload.enable_streaming;
+        await setStreamingStatus(enable);
+        return res.status(200).send({ success: true, enable_streaming: enable });
+      } catch (err) {
+        return res.status(400).send({ success: false, error: err.message });
+      }
+    }
+  }
   if (urlObj.pathname.startsWith('/api/bot') || urlObj.pathname.startsWith('/api/telegram')) {
     
     // Global state in-memory variables (persists during warm runtime)

@@ -18,10 +18,23 @@ import 'package:app_links/app_links.dart';
 import 'services/tmdb_service.dart';
 import 'screens/movie_detail_screen.dart';
 import 'models/movie.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  
+  // Fetch remote config switch status
+  try {
+    final response = await http.get(Uri.parse('https://www.movienest.app/api/config')).timeout(const Duration(seconds: 4));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      enableStreaming.value = data['enable_streaming'] ?? true;
+    }
+  } catch (_) {
+    enableStreaming.value = true; // Fallback to true if offline
+  }
   
   final bool startProxy = !kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.android);
   if (startProxy) {
@@ -32,9 +45,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // Initialize Firebase Analytics
-  final analytics = FirebaseAnalytics.instance;
-  await analytics.logAppOpen();
+  // Initialize Firebase Analytics (non-blocking)
+  try {
+    FirebaseAnalytics.instance.logAppOpen();
+  } catch (_) {}
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,

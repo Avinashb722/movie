@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _watchoSessionId = '';
   String _watchoBoxId = '';
   bool _watchoSessionSet = false;
+  String _appVersion = '';
 
   @override
   void initState() {
@@ -29,6 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadAoneroomToken();
     _loadCfProxyUrl();
     _loadWatchoSession();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _appVersion = info.version);
+    } catch (_) {}
   }
 
   Future<void> _loadCfProxyUrl() async {
@@ -480,10 +490,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           const SizedBox(height: 30),
           Center(
-            child: Column(children: const [
-              Text('MovieNest v1.0.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-              SizedBox(height: 4),
-              Text('Powered by TMDB + Free Streaming', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+            child: Column(children: [
+              Text('MovieNest v${_appVersion.isNotEmpty ? _appVersion : '1.1.0'}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              const SizedBox(height: 4),
+              const Text('Powered by TMDB + Free Streaming', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
             ]),
           ),
           const SizedBox(height: 30),
