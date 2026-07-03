@@ -110,6 +110,16 @@ if (Confirm-Step "Do you want to build the Windows app?") {
                 Write-Host "Please compile the installer first before proceeding." -ForegroundColor Red
             }
         }
+        
+        # Copy compiled setup installer to public downloads folder
+        $setupPath = "web/downloads/movienest-setup.exe"
+        $setupDest = "public/downloads/movienest-setup.exe"
+        if (Test-Path $setupPath) {
+            Copy-Item -Path $setupPath -Destination $setupDest -Force
+            Write-Host "Copied Windows Setup Installer to public downloads folder." -ForegroundColor Green
+        } else {
+            Write-Host "Warning: No Windows installer found in web/downloads/!" -ForegroundColor Red
+        }
     } else {
         Write-Host "Windows build failed!" -ForegroundColor Red
         Exit
@@ -123,16 +133,7 @@ Write-Host "`n-----------------------------------------" -ForegroundColor DarkCy
 Write-Host " [4/4] Deploy to Vercel" -ForegroundColor DarkCyan
 Write-Host "-----------------------------------------" -ForegroundColor DarkCyan
 if (Confirm-Step "Do you want to deploy live to Vercel now?") {
-    $setupPath = "web/downloads/movienest-setup.exe"
-    $setupDest = "public/downloads/movienest-setup.exe"
-    if (Test-Path $setupPath) {
-        Copy-Item -Path $setupPath -Destination $setupDest -Force
-        Write-Host "Copied Windows Setup Installer to public folder." -ForegroundColor Green
-    } else {
-        Write-Host "No Windows installer found, deploying without it." -ForegroundColor DarkGray
-    }
     vercel --prod
-
     Write-Host "`n=========================================" -ForegroundColor Green
     Write-Host "  SUCCESS: RELEASE VERSION $newVersion IS LIVE!" -ForegroundColor Green
     Write-Host "=========================================" -ForegroundColor Green
