@@ -82,6 +82,26 @@ if (Confirm-Step "Do you want to build the Android APK?") {
     Write-Host "Skipped Android APK build." -ForegroundColor DarkGray
 }
 
+# 5.1. Build Android TV APK
+Write-Host "`n-----------------------------------------" -ForegroundColor DarkCyan
+Write-Host " [2.1/4] Android TV APK Build" -ForegroundColor DarkCyan
+Write-Host "-----------------------------------------" -ForegroundColor DarkCyan
+if (Confirm-Step "Do you want to build the Android TV APK?") {
+    flutter build apk --release --target-platform=android-arm
+    $apkSource = "build/app/outputs/flutter-apk/app-release.apk"
+    if (Test-Path $apkSource) {
+        Copy-Item -Path $apkSource -Destination "web/downloads/movienest-tv.apk" -Force
+        Copy-Item -Path $apkSource -Destination "public/downloads/movienest-tv.apk" -Force
+        Write-Host "Android TV APK compiled and copied successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "Android TV build failed!" -ForegroundColor Red
+        Exit
+    }
+} else {
+    Write-Host "Skipped Android TV APK build." -ForegroundColor DarkGray
+}
+
+
 # 6. Build Windows App
 Write-Host "`n-----------------------------------------" -ForegroundColor DarkCyan
 Write-Host " [3/4] Windows App Build" -ForegroundColor DarkCyan
