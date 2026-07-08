@@ -366,13 +366,17 @@ class _MainNavState extends State<MainNav> {
       final fragment = uri.fragment;
       if (fragment.isNotEmpty) {
         final fragmentUri = Uri.parse(fragment);
-        if (fragmentUri.path.contains('/movie/')) {
+        if (fragmentUri.path.contains('/movie/') || fragmentUri.path.contains('/tv/')) {
           path = fragmentUri.path;
         }
       }
 
-      if (path.contains('/movie/')) {
-        final segments = path.split('/movie/');
+      final isMoviePath = path.contains('/movie/');
+      final isTvPath = path.contains('/tv/');
+
+      if (isMoviePath || isTvPath) {
+        final splitter = isMoviePath ? '/movie/' : '/tv/';
+        final segments = path.split(splitter);
         if (segments.length > 1) {
           final slug = segments[1].trim();
           if (slug.isNotEmpty) {
@@ -473,7 +477,8 @@ class _MainNavState extends State<MainNav> {
       final String initPath = Uri.base.path;
       final String initFragment = Uri.base.fragment;
 
-      if (initPath.contains('/movie/') || initFragment.contains('/movie/')) {
+      final bool hasDeepLink = initPath.contains('/movie/') || initFragment.contains('/movie/') || initPath.contains('/tv/') || initFragment.contains('/tv/');
+      if (hasDeepLink) {
         _isDeepLinkLoading = true;
       }
 
@@ -492,23 +497,26 @@ class _MainNavState extends State<MainNav> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         
-        final bool isMovieLink = initPath.contains('/movie/') || initFragment.contains('/movie/');
+        final bool isMovieLink = initPath.contains('/movie/') || initFragment.contains('/movie/') || initPath.contains('/tv/') || initFragment.contains('/tv/');
         if (!isMovieLink) {
           _updateBrowserUrl(initialIdx);
         }
         _updateWebTabSeo(initialIdx);
         
-        // Execute deep-linking for direct movie links
+        // Execute deep-linking for direct movie/tv links
         try {
           String targetPath = initPath;
           if (initFragment.isNotEmpty) {
             final fragmentUri = Uri.parse(initFragment);
-            if (fragmentUri.path.contains('/movie/')) {
+            if (fragmentUri.path.contains('/movie/') || fragmentUri.path.contains('/tv/')) {
               targetPath = fragmentUri.path;
             }
           }
-          if (targetPath.contains('/movie/')) {
-            final segments = targetPath.split('/movie/');
+          final isMovieRoute = targetPath.contains('/movie/');
+          final isTvRoute = targetPath.contains('/tv/');
+          if (isMovieRoute || isTvRoute) {
+            final splitter = isMovieRoute ? '/movie/' : '/tv/';
+            final segments = targetPath.split(splitter);
             if (segments.length > 1) {
               String slug = segments[1].trim();
               // Strip query parameters
