@@ -108,15 +108,16 @@ class TorrentioService {
 
   /// Fetches available torrent streams for a movie by its IMDB ID.
   /// Returns sorted list (best quality first).
-  static Future<List<TorrentStream>> getStreams(String imdbId) async {
+  static Future<List<TorrentStream>> getStreams(String imdbId, {bool isTv = false, int season = 1, int episode = 1}) async {
     if (!imdbId.startsWith('tt')) {
       debugPrint('[Torrentio] Invalid IMDB ID: $imdbId');
       return [];
     }
 
     try {
-      debugPrint('[Torrentio] Fetching streams for $imdbId');
-      final uri = Uri.parse('$_baseUrl/stream/movie/$imdbId.json');
+      debugPrint('[Torrentio] Fetching streams for $imdbId (isTv=$isTv, S=$season, E=$episode)');
+      final path = isTv ? 'series/$imdbId:$season:$episode' : 'movie/$imdbId';
+      final uri = Uri.parse('$_baseUrl/stream/$path.json');
 
       http.Response resp;
       if (kIsWeb) {

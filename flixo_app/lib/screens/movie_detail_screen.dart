@@ -44,6 +44,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   WebViewController? _webViewController;
   bool _playTrailer = false;
   bool _loadingTrailer = false;
+  int _selectedSeasonNumber = 1;
+  int _selectedEpisodeNumber = 1;
 
 
   // Cache variables for fetched streams to speed up "Other Links" bottom sheet
@@ -62,8 +64,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           .toLowerCase()
           .replaceAll(RegExp(r'[^a-z0-9\s-]'), '')
           .replaceAll(RegExp(r'\s+'), '-');
+      final pathPrefix = widget.movie.isTvShow ? 'tv' : 'movie';
       SystemNavigator.routeInformationUpdated(
-        location: '/movie/$titleSlug',
+        location: '/$pathPrefix/$titleSlug',
       );
       _updateMovieSeo(widget.movie, null);
     }
@@ -77,7 +80,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           .replaceAll(RegExp(r'[^a-z0-9\s-]'), '')
           .replaceAll(RegExp(r'\s+'), '-');
           
-      final canonicalUrl = 'https://www.movienest.app/movie/$titleSlug';
+      final pathPrefix = m.isTvShow ? 'tv' : 'movie';
+      final canonicalUrl = 'https://www.movienest.app/$pathPrefix/$titleSlug';
       final year = m.releaseDate.isNotEmpty ? ' (${m.releaseDate.split("-").first})' : '';
       final title = '${m.title}$year - Watch Details | MovieNest';
       final description = 'Watch ${m.title}, cast, rating, overview, trailers and recommendations on MovieNest.';
@@ -86,7 +90,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
       final movieSchema = {
         "@context": "https://schema.org",
-        "@type": "Movie",
+        "@type": m.isTvShow ? "TVSeries" : "Movie",
         "name": m.title,
         "image": m.backdropUrl.isNotEmpty ? m.backdropUrl : 'https://www.movienest.app/icons/Icon-512.png',
         "description": m.overview,
@@ -112,8 +116,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   Future<void> _load() async {
     final results = await Future.wait([
-      TmdbService.getDetail(widget.movie.id),
-      TmdbService.getSimilar(widget.movie.id),
+      TmdbService.getDetail(widget.movie.id, isTv: widget.movie.isTvShow),
+      TmdbService.getSimilar(widget.movie.id, isTv: widget.movie.isTvShow),
     ]);
     if (mounted) {
       final detail = results[0] as MovieDetail?;
@@ -632,6 +636,125 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     ),
                   ],
 
+                  // ── Season & Episode Selectors (TV Series only) ──
+                  if (_detail != null && _detail!.isTvShow && _detail!.seasons.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text('Seasons', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    
+                    // Seasons Horizontal List
+                    SizedBox(
+                      height: 38,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _detail!.seasons.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, idx) {
+                          final s = _detail!.seasons[idx];
+                          final isSelected = s.seasonNumber == _selectedSeasonNumber;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedSeasonNumber = s.seasonNumber;
+                                _selectedEpisodeNumber = 1; // Reset episode
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.accent : AppColors.card,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: isSelected ? AppColors.accent : AppColors.border),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  s.name.isNotEmpty ? s.name : 'Season ${s.seasonNumber}',
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : AppColors.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    const Text('Episodes', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    
+                    // Episodes Vertical List / Grid
+                    (() {
+                      final currentSeason = _detail!.seasons.firstWhere(
+                        (s) => s.seasonNumber == _selectedSeasonNumber,
+                        orElse: () => _detail!.seasons.first,
+                      );
+                      
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: currentSeason.episodeCount,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final epNum = idx + 1;
+                          final isSelected = epNum == _selectedEpisodeNumber;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedEpisodeNumber = epNum;
+                              });
+                              _startTvDirect2EmbedFlow(currentSeason.seasonNumber, epNum);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.card.withOpacity(0.8) : AppColors.card,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: isSelected ? AppColors.accent : AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: isSelected ? AppColors.accent : AppColors.surface,
+                                    radius: 14,
+                                    child: Text(
+                                      '$epNum',
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.black : AppColors.textPrimary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Episode $epNum',
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.play_circle_fill_rounded,
+                                    color: isSelected ? AppColors.accent : AppColors.textMuted,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    })(),
+                  ],
+
                   // ── Cast ──────────────────────────────────
                   if (_detail != null && _detail!.cast.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -765,6 +888,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     );
 
     try {
+      if (m.isTvShow) {
+        if (mounted) Navigator.pop(context);
+        _startTvDirect2EmbedFlow(_selectedSeasonNumber, _selectedEpisodeNumber);
+        return;
+      }
       final streamUrl = await TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString());
       if (mounted) Navigator.pop(context);
       if (streamUrl != null && streamUrl.isNotEmpty) {
@@ -798,17 +926,86 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     }
   }
 
-  Future<void> _startAlternativeServersFlow() async {
-    await _startPlayFlow(isDownloadFlow: false);
+  Future<void> _startTvDirect2EmbedFlow(int season, int episode) async {
+    final m = _detail ?? widget.movie;
+    final imdb = _detail?.imdbId ?? '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          backgroundColor: AppColors.card,
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: AppColors.accent),
+              SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  'Loading 2Embed Direct TV Player...',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      final streamUrl = await TwoEmbedService.instance.resolveTvStreamUrl(imdb, m.id.toString(), season, episode);
+      if (mounted) Navigator.pop(context);
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        HistoryService.instance.addToHistory(m);
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                movie: m,
+                directUrl: streamUrl,
+              ),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('2Embed TV stream unavailable. Trying alternative servers...'),
+              backgroundColor: Colors.amber,
+            ),
+          );
+          _startTvAlternativeServersFlow(season, episode);
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) _startTvAlternativeServersFlow(season, episode);
+    }
   }
 
-  Future<void> _startPlayFlow({bool isDownloadFlow = false}) async {
+  Future<void> _startTvAlternativeServersFlow(int season, int episode) async {
+    await _startPlayFlow(isDownloadFlow: false, isTv: true, season: season, episode: episode);
+  }
+
+  Future<void> _startAlternativeServersFlow() async {
+    final m = _detail ?? widget.movie;
+    if (m.isTvShow) {
+      await _startPlayFlow(isDownloadFlow: false, isTv: true, season: _selectedSeasonNumber, episode: _selectedEpisodeNumber);
+    } else {
+      await _startPlayFlow(isDownloadFlow: false);
+    }
+  }
+
+  Future<void> _startPlayFlow({bool isDownloadFlow = false, bool isTv = false, int season = 1, int episode = 1}) async {
     final m = _detail ?? widget.movie;
     final title = m.title;
     final yearVal = int.tryParse(m.year);
     final imdb = _detail?.imdbId ?? '';
 
-    debugPrint('[MovieDetail] Starting play flow (isDownload=$isDownloadFlow) for: $title (IMDB: $imdb)');
+    debugPrint('[MovieDetail] Starting play flow (isDownload=$isDownloadFlow, isTv=$isTv, S=$season, E=$episode) for: $title (IMDB: $imdb)');
 
     List<TorrentStream> torrents = [];
     List<MovieBoxStream> movieBoxStreams = [];
@@ -817,7 +1014,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     final bool hasValidCache = _cachedTorrents != null &&
         _cacheTime != null &&
-        DateTime.now().difference(_cacheTime!) < const Duration(minutes: 10);
+        DateTime.now().difference(_cacheTime!) < const Duration(minutes: 10) &&
+        !isTv;
 
     if (hasValidCache) {
       torrents = _cachedTorrents!;
@@ -852,15 +1050,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         // Run all stream resolution concurrently
         final results = await Future.wait([
           imdb.startsWith('tt')
-              ? TorrentioService.getStreams(imdb)
+              ? TorrentioService.getStreams(imdb, isTv: isTv, season: season, episode: episode)
               : Future.value(<TorrentStream>[]),
-          MovieBoxService.resolveStreams(
-            title,
-            tmdbId: m.id,
-            imdbId: imdb.isNotEmpty ? imdb : null,
-          ),
-          ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null),
-          TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString()),
+          !isTv
+              ? MovieBoxService.resolveStreams(
+                  title,
+                  tmdbId: m.id,
+                  imdbId: imdb.isNotEmpty ? imdb : null,
+                )
+              : Future.value(<MovieBoxStream>[]),
+          !isTv
+              ? ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null)
+              : Future.value(<ArchiveStream>[]),
+          isTv
+              ? TwoEmbedService.instance.resolveTvStreamUrl(imdb, m.id.toString(), season, episode)
+              : TwoEmbedService.instance.resolveStreamUrl(imdb, m.id.toString()),
         ]);
         torrents = results[0] as List<TorrentStream>;
         movieBoxStreams = results[1] as List<MovieBoxStream>;
@@ -943,12 +1147,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           }
         }
 
-        // Cache the parsed streams
-        _cachedTorrents = torrents;
-        _cachedMovieBoxStreams = movieBoxStreams;
-        _cachedArchives = archives;
-        _cachedTwoEmbedStreams = twoEmbedStreams;
-        _cacheTime = DateTime.now();
+        if (!isTv) {
+          // Cache the parsed streams
+          _cachedTorrents = torrents;
+          _cachedMovieBoxStreams = movieBoxStreams;
+          _cachedArchives = archives;
+          _cachedTwoEmbedStreams = twoEmbedStreams;
+          _cacheTime = DateTime.now();
+        }
       } catch (e) {
         debugPrint('[MovieDetailScreen] Stream resolution error: $e');
       } finally {
@@ -1375,7 +1581,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   void _startDownloadFlow() {
-    _startPlayFlow(isDownloadFlow: true);
+    final m = _detail ?? widget.movie;
+    if (m.isTvShow) {
+      _startPlayFlow(isDownloadFlow: true, isTv: true, season: _selectedSeasonNumber, episode: _selectedEpisodeNumber);
+    } else {
+      _startPlayFlow(isDownloadFlow: true);
+    }
   }
 
   Widget _buildUserGuideSection() {

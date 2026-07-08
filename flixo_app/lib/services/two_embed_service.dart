@@ -538,4 +538,113 @@ class TwoEmbedService {
     for (int i = 0; i < exponent; i++) { result *= base; }
     return result;
   }
+
+  Future<String?> resolveTvStreamUrl(String imdbId, String tmdbId, int season, int episode) async {
+    try {
+      _log('[TwoEmbedService] Resolving TV stream for IMDb ID: $imdbId, TMDB ID: $tmdbId, S: $season, E: $episode');
+      
+      String? embedPageBody;
+      if (tmdbId.isNotEmpty) {
+        embedPageBody = await _fetchText(
+          'https://www.2embed.cc/embed/tv?tmdb=$tmdbId&s=$season&e=$episode',
+          headers: {'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8'},
+        );
+      } else if (imdbId.isNotEmpty) {
+        embedPageBody = await _fetchText(
+          'https://www.2embed.cc/embed/tv?imdb=$imdbId&s=$season&e=$episode',
+          headers: {'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8'},
+        );
+      }
+
+      final List<String> combinedStreams = [];
+
+      if (embedPageBody != null) {
+        // Try swish path (LookMovie style)
+        final swishResult = await _resolveSwishPath(embedPageBody);
+        if (swishResult != null && swishResult.isNotEmpty) {
+          combinedStreams.add(swishResult);
+        }
+
+        // Try vnest path (vidnest style)
+        final vnestResult = await _resolveVnestPath(embedPageBody);
+        if (vnestResult != null && vnestResult.isNotEmpty) {
+          combinedStreams.add(vnestResult);
+        }
+      }
+
+      // Query vnest TV providers using TMDB ID if provided
+      if (tmdbId.isNotEmpty) {
+        _log('[TwoEmbedService] Querying vnest TV providers for TMDB ID: $tmdbId, S: $season, E: $episode');
+        final directVnest = await _queryVnestTvProviders(tmdbId, season, episode);
+        if (directVnest != null && directVnest.isNotEmpty) {
+          combinedStreams.add(directVnest);
+        }
+      }
+
+      if (combinedStreams.isNotEmpty) {
+        return combinedStreams.join('||');
+      }
+
+      _log('[TwoEmbedService] No TV stream found via any path');
+      return null;
+    } catch (e) {
+      _log('[TwoEmbedService] Error resolving TV stream: $e');
+      return null;
+    }
+  }
+
+  Future<String?> _queryVnestTvProviders(String tmdbId, int season, int episode) async {
+    final List<String> allStreams = [];
+
+    for (final providerPath in _vidnestProviders) {
+      // Convert trailing '/movie' -> '/tv' in provider paths for TV Series
+      String tvPath = providerPath;
+      if (providerPath.endsWith('/movie')) {
+        tvPath = '${providerPath.substring(0, providerPath.length - 6)}/tv';
+      }
+      final url = '$_vidnestBase$tvPath/$tmdbId/$season/$episode';
+      _log('[TwoEmbedService] Trying TV provider: $url');
+
+      final body = await _fetchText(
+        url,
+        headers: {
+          'Accept': 'application/json, */*',
+          'Origin': 'https://vidnest.fun',
+          'Referer': 'https://vidnest.fun/',
+        },
+      );
+      if (body == null) continue;
+
+      try {
+        final json = jsonDecode(body) as Map<String, dynamic>;
+
+        // Decrypt if encrypted
+        final Map<String, dynamic> data;
+        if (json['encrypted'] == true && json['data'] is String) {
+          final decrypted = _decryptVidnest(json['data'] as String);
+          final parsed = jsonDecode(decrypted);
+          data = parsed is Map<String, dynamic> ? parsed : {};
+        } else {
+          data = json;
+        }
+
+        // Extract all streams (to support multiple separate language links)
+        final streamString = _extractAllStreams(data);
+        if (streamString != null && streamString.isNotEmpty) {
+          allStreams.add(streamString);
+        }
+      } catch (e) {
+        _log('[TwoEmbedService] TV Provider $tvPath error: $e');
+      }
+    }
+
+    if (allStreams.isNotEmpty) {
+      final combined = allStreams.join('||');
+      _log('[TwoEmbedService] Vnest TV combined stream configs: $combined');
+      return combined;
+    }
+
+    _log('[TwoEmbedService] Vnest TV path: no stream found from any provider');
+    return null;
+  }
 }

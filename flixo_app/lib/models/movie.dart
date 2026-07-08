@@ -8,6 +8,7 @@ class Movie {
   final String releaseDate;
   final String language;
   final List<int> genreIds;
+  final bool isTvShow;
 
   const Movie({
     required this.id,
@@ -19,6 +20,7 @@ class Movie {
     required this.releaseDate,
     required this.language,
     this.genreIds = const [],
+    this.isTvShow = false,
   });
 
   String get year => releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '';
@@ -34,9 +36,10 @@ class Movie {
     backdropPath: j['backdrop_path'] ?? '',
     rating:       (j['vote_average'] ?? 0).toDouble(),
     overview:     j['overview'] ?? '',
-    releaseDate:  j['release_date'] ?? '',
+    releaseDate:  j['release_date'] ?? j['first_air_date'] ?? '',
     language:     j['original_language'] ?? '',
     genreIds:     j['genre_ids'] != null ? List<int>.from(j['genre_ids']) : const [],
+    isTvShow:     j['media_type'] == 'tv' || j['first_air_date'] != null || (j['name'] != null && j['title'] == null),
   );
 
   Map<String, dynamic> toJson() => {
@@ -49,6 +52,7 @@ class Movie {
     'release_date':      releaseDate,
     'original_language': language,
     'genre_ids':         genreIds,
+    'is_tv_show':        isTvShow,
   };
 }
 
@@ -69,12 +73,42 @@ class CastMember {
   );
 }
 
+class TvSeason {
+  final int seasonNumber;
+  final int episodeCount;
+  final String name;
+  final String posterPath;
+
+  const TvSeason({
+    required this.seasonNumber,
+    required this.episodeCount,
+    required this.name,
+    required this.posterPath,
+  });
+
+  factory TvSeason.fromJson(Map<String, dynamic> json) => TvSeason(
+        seasonNumber: json['season_number'] ?? 0,
+        episodeCount: json['episode_count'] ?? 0,
+        name: json['name'] ?? '',
+        posterPath: json['poster_path'] ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'season_number': seasonNumber,
+        'episode_count': episodeCount,
+        'name': name,
+        'poster_path': posterPath,
+      };
+}
+
 class MovieDetail extends Movie {
   final String imdbId;
   final int    runtime;
   final List<String> genres;
   final List<CastMember> cast;
   final String trailerYoutubeKey;
+  final List<TvSeason> seasons;
+  final int numberOfSeasons;
 
   const MovieDetail({
     required super.id,
@@ -86,11 +120,14 @@ class MovieDetail extends Movie {
     required super.releaseDate,
     required super.language,
     super.genreIds,
+    super.isTvShow,
     required this.imdbId,
     required this.runtime,
     required this.genres,
     required this.cast,
     required this.trailerYoutubeKey,
+    this.seasons = const [],
+    this.numberOfSeasons = 0,
   });
 
   String get runtimeStr {
@@ -121,21 +158,31 @@ class MovieDetail extends Movie {
     );
     final trailerKey = trailer != null ? trailer['key'] as String? ?? '' : '';
 
+    final isTv = j['first_air_date'] != null || j['number_of_seasons'] != null || j['name'] != null;
+    final seasonsJson = j['seasons'] as List? ?? [];
+    final seasonsList = seasonsJson
+        .map((s) => TvSeason.fromJson(s))
+        .where((s) => s.seasonNumber > 0) // Skip season 0 (Specials) for cleaner UI
+        .toList();
+
     return MovieDetail(
       id:           j['id'] ?? 0,
-      title:        j['title'] ?? '',
+      title:        j['title'] ?? j['name'] ?? '',
       posterPath:   j['poster_path'] ?? '',
       backdropPath: j['backdrop_path'] ?? '',
       rating:       (j['vote_average'] ?? 0).toDouble(),
       overview:     j['overview'] ?? '',
-      releaseDate:  j['release_date'] ?? '',
+      releaseDate:  j['release_date'] ?? j['first_air_date'] ?? '',
       language:     j['original_language'] ?? '',
       genreIds:     genreIdsList,
+      isTvShow:     isTv,
       imdbId:       ext['imdb_id'] ?? j['imdb_id'] ?? '',
-      runtime:      j['runtime'] ?? 0,
+      runtime:      j['runtime'] ?? (j['episode_run_time'] is List && (j['episode_run_time'] as List).isNotEmpty ? (j['episode_run_time'] as List)[0] : 0),
       genres:       genreList,
       cast:         castList,
       trailerYoutubeKey: trailerKey,
+      seasons:      seasonsList,
+      numberOfSeasons: j['number_of_seasons'] ?? seasonsList.length,
     );
   }
 }

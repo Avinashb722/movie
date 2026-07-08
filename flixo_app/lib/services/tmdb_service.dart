@@ -92,14 +92,16 @@ class TmdbService {
 
   // Search fetches both pages for more results
   static Future<List<Movie>> searchMovies(String q) async {
-    final p1 = _fetch('/search/movie', {'query': q, 'include_adult': 'false', 'page': '1'});
-    final p2 = _fetch('/search/movie', {'query': q, 'include_adult': 'false', 'page': '2'});
+    final p1 = _fetch('/search/multi', {'query': q, 'include_adult': 'false', 'page': '1'});
+    final p2 = _fetch('/search/multi', {'query': q, 'include_adult': 'false', 'page': '2'});
     final results = await Future.wait([p1, p2]);
     final seen = <int>{};
     final combined = <Movie>[];
     for (final list in results) {
       for (final m in list) {
-        if (seen.add(m.id)) combined.add(m);
+        if (m.posterPath.isNotEmpty && seen.add(m.id)) {
+          combined.add(m);
+        }
       }
     }
     return combined;
@@ -127,13 +129,14 @@ class TmdbService {
   static Future<List<Movie>> getSciFi()   => getByGenre(878);
   static Future<List<Movie>> getRomance() => getByGenre(10749);
 
-  static Future<MovieDetail?> getDetail(int id) async {
+  static Future<MovieDetail?> getDetail(int id, {bool isTv = false}) async {
     final params = {
       'api_key': _key,
       'append_to_response': 'external_ids,credits,videos',
     };
 
-    final uri = Uri.parse('$_base/movie/$id').replace(queryParameters: params);
+    final typePath = isTv ? 'tv' : 'movie';
+    final uri = Uri.parse('$_base/$typePath/$id').replace(queryParameters: params);
     final res = await _getWithProxy(uri);
     if (res != null) {
       return MovieDetail.fromJson(json.decode(res.body));
@@ -141,7 +144,7 @@ class TmdbService {
 
     if (!kIsWeb) {
       try {
-        final fbUri = Uri.parse('$_fallbackBase/movie/$id').replace(queryParameters: params);
+        final fbUri = Uri.parse('$_fallbackBase/$typePath/$id').replace(queryParameters: params);
         final fbRes = await http.get(fbUri).timeout(const Duration(seconds: 8));
         if (fbRes.statusCode == 200) {
           return MovieDetail.fromJson(json.decode(fbRes.body));
@@ -152,8 +155,8 @@ class TmdbService {
     return null;
   }
 
-  static Future<List<Movie>> getSimilar(int id) =>
-      _fetch('/movie/$id/similar');
+  static Future<List<Movie>> getSimilar(int id, {bool isTv = false}) =>
+      _fetch(isTv ? '/tv/$id/similar' : '/movie/$id/similar');
 
   static Future<List<Movie>> discoverMovies({String? lang, int? genreId, String? sortBy, int page = 1}) {
     final Map<String, String> params = {'page': page.toString()};
