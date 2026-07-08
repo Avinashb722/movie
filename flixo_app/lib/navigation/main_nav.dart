@@ -422,6 +422,7 @@ class _MainNavState extends State<MainNav> {
   }
 
   Future<void> _checkAndShowWebDownloadPopup() async {
+    if (isSearchBot()) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
@@ -532,7 +533,11 @@ class _MainNavState extends State<MainNav> {
         } catch (_) {}
 
         if (!isMovieLink) {
-          _checkAndShowWebDownloadPopup();
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) {
+              _checkAndShowWebDownloadPopup();
+            }
+          });
         }
       });
     }

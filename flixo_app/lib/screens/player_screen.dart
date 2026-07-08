@@ -520,9 +520,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     }
     
+    final bool useProxy = url.contains('|use_proxy=true');
+    if (cleanUrl.contains('|use_proxy=')) {
+      cleanUrl = cleanUrl.split('|use_proxy=')[0];
+    }
+
     // Strip language metadata if it exists directly on the target URL
     if (cleanUrl.contains('|language=')) {
       cleanUrl = cleanUrl.split('|language=')[0];
+    }
+
+    final bool isIp = RegExp(r'https?://\d+\.\d+\.\d+\.\d+').hasMatch(cleanUrl) || RegExp(r'^\d+\.\d+\.\d+\.\d+').hasMatch(cleanUrl);
+    final bool is2EmbedOrLookMovie = cleanUrl.contains('lookmovie') ||
+        cleanUrl.contains('korso420dim.com') ||
+        cleanUrl.contains('cdn30091') ||
+        cleanUrl.contains('cdn30092') ||
+        cleanUrl.contains('tiktokcdn.com') ||
+        cleanUrl.contains('laika422mon.com') ||
+        cleanUrl.contains('vidnest.fun') ||
+        isIp;
+
+    if (is2EmbedOrLookMovie) {
+      // For 2embed/LookMovie, we only use the piped referer. Never fallback to MovieBox referrer!
+      if (!url.contains('|referer=')) {
+        cleanReferer = null;
+      }
     }
 
     String playUrl = cleanUrl;
@@ -644,7 +666,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // Set headers for direct playback
       final bool isMovieBoxUrl = (cleanUrl.contains('hakunaymatata.com') ||
           cleanUrl.contains('aoneroom.com') ||
-          widget.referer != null) && !cleanUrl.contains('korso420dim.com') && !cleanUrl.contains('cdn30092');
+          (widget.referer != null && !is2EmbedOrLookMovie)) && !is2EmbedOrLookMovie && !cleanUrl.contains('korso420dim.com') && !cleanUrl.contains('cdn30092');
       if (isMovieBoxUrl) {
         playHeaders['Referer'] = 'https://www.movieboxpro.app/';
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36';
@@ -653,10 +675,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Range'] = 'bytes=0-';
-      } else if (cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('cdn30091') || cleanUrl.contains('cdn30092')) {
+      } else if (is2EmbedOrLookMovie) {
         playHeaders['Referer'] = cleanReferer ?? 'https://lookmovie2.skin/';
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
-        playHeaders['Origin'] = 'https://lookmovie2.skin';
+        String origin = 'https://lookmovie2.skin';
+        if (cleanReferer != null && cleanReferer.startsWith('http')) {
+          try { origin = Uri.parse(cleanReferer).origin; } catch (_) {}
+        }
+        playHeaders['Origin'] = origin;
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Connection'] = 'keep-alive';
@@ -712,11 +738,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         } else {
           final bool isProxyUrl = url.contains('ver-orcin-alpha.vercel.app') || url.contains('127.0.0.1') || (hasCfProxy && url.startsWith(cfProxyUrl));
           if (!isProxyUrl) {
-            final bool isLookMovieOrKorso = cleanUrl.contains('lookmovie2.skin') || cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('cdn30091') || cleanUrl.contains('cdn30092') || cleanUrl.contains('tiktokcdn.com');
+            final bool isLookMovieOrKorso = is2EmbedOrLookMovie || useProxy;
             if (isLookMovieOrKorso) {
               final proxyPort = LocalStreamingProxy.instance.port;
               final ref = cleanReferer ?? 'https://lookmovie2.skin/';
-              playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
+              final proxyParam = useProxy ? '&use_proxy=true' : '';
+              playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}$proxyParam';
               debugPrint('[PlayerScreen] Native Android - Routing stream through LocalStreamingProxy localhost port: $playUrl');
             } else {
               playUrl = cleanUrl;
@@ -750,8 +777,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         return;
       }
 
+      final bool isHls = cleanUrl.contains('.m3u8') || cleanUrl.contains('.txt') || cleanUrl.contains('cf-master');
       final vc = VideoPlayerController.networkUrl(
         Uri.parse(playUrl),
+        formatHint: isHls ? VideoFormat.hls : null,
         httpHeaders: kIsWeb ? const {} : (playHeaders.isNotEmpty ? playHeaders : const {}),
       );
       await vc.initialize();

@@ -113,10 +113,10 @@ class LocalStreamingProxy {
     final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
     final bool isAoneroom = targetUrl.contains('aoneroom.com') || targetUrl.contains('hakunaymatata.com');
     final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
-    // On Android and iOS, direct connection is preferred to ensure the client IP matches the signed IP in the URL.
-    final bool useVercel = isLookMovie && 
+    final bool useProxyParam = queryStr.contains('use_proxy=true');
+    final bool useVercel = useProxyParam || (isLookMovie && 
                            !targetUrl.contains('ver-orcin-alpha.vercel.app') && 
-                           !(Platform.isAndroid || Platform.isIOS);
+                           !(Platform.isAndroid || Platform.isIOS));
 
     if (request.uri.path == '/play') {
       _lastReferer = '';

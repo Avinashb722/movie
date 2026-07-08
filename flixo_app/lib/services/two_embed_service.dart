@@ -218,7 +218,11 @@ class TwoEmbedService {
         if (s is Map && s['url'] is String) {
           final url = s['url'] as String;
           if (_isValidStreamUrl(url)) {
-            final appended = _appendReferer(url, s['headers'] as Map?);
+            var appended = _appendReferer(url, s['headers'] as Map?);
+            final type = (s['type'] ?? '').toString().toLowerCase();
+            if (type == 'cloudflare' || url.contains('.txt') || url.contains('cf-master')) {
+              appended = '$appended|use_proxy=true';
+            }
             final lang = s['language'] ?? s['lang'] ?? 'Unknown';
             parts.add('$appended|language=$lang');
           }
@@ -263,6 +267,14 @@ class TwoEmbedService {
     }
 
     if (parts.isNotEmpty) {
+      // Prioritize Cloudflare / use_proxy streams to the front
+      parts.sort((a, b) {
+        final aProxy = a.contains('|use_proxy=true');
+        final bProxy = b.contains('|use_proxy=true');
+        if (aProxy && !bProxy) return -1;
+        if (!aProxy && bProxy) return 1;
+        return 0;
+      });
       return parts.join('||');
     }
 
@@ -278,7 +290,7 @@ class TwoEmbedService {
     if (lower.contains('korso420dim.com') || lower.contains('hakunaymatata.com') || lower.contains('aoneroom.com')) {
       return true;
     }
-    return lower.contains('.m3u8') || lower.contains('.mp4') || lower.contains('.ts') || lower.contains('/stream/') || lower.contains('/resource/');
+    return lower.contains('.m3u8') || lower.contains('.mp4') || lower.contains('.ts') || lower.contains('.txt') || lower.contains('/cf-master') || lower.contains('/stream/') || lower.contains('/resource/');
   }
 
   String _appendReferer(String url, Map? headers) {
@@ -288,9 +300,10 @@ class TwoEmbedService {
         return '$url|referer=$referer';
       }
     }
-    // Fallback referer for moviesapi (IP hosts like 185.237.x.x)
+    // Fallback referer for moviesapi (IP hosts like 185.237.x.x, 45.156.x.x)
     final lower = url.toLowerCase();
-    if (lower.contains('185.237.107.') || lower.contains('185.237.')) {
+    final isIp = RegExp(r'https?://\d+\.\d+\.\d+\.\d+').hasMatch(lower);
+    if (lower.contains('185.237.107.') || lower.contains('185.237.') || lower.contains('45.156.') || isIp) {
       return '$url|referer=https://vidnest.fun/';
     }
     return url;
@@ -302,7 +315,19 @@ class TwoEmbedService {
     // Format 1: {streams: [{url, type, headers}, ...]}
     final streamsList = data['streams'];
     if (streamsList is List && streamsList.isNotEmpty) {
-      // Prefer HLS first
+      // First, try to find a Cloudflare / use_proxy stream
+      for (final s in streamsList) {
+        if (s is Map && s['url'] is String) {
+          final url = s['url'] as String;
+          if (_isValidStreamUrl(url)) {
+            final type = (s['type'] ?? '').toString().toLowerCase();
+            if (type == 'cloudflare' || url.contains('.txt') || url.contains('cf-master')) {
+              return '${_appendReferer(url, s['headers'] as Map?)}|use_proxy=true';
+            }
+          }
+        }
+      }
+      // Prefer HLS next
       for (final s in streamsList) {
         if (s is Map && s['url'] is String) {
           final url = s['url'] as String;
