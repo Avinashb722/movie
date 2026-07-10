@@ -48,6 +48,12 @@ class TwoEmbedService {
       final List<String> combinedStreams = [];
 
       if (embedPageBody != null) {
+        // Try xps path (2embed/1x2.space style)
+        // final xpsResult = await _resolveXpsPath(embedPageBody);
+        // if (xpsResult != null && xpsResult.isNotEmpty) {
+        //   combinedStreams.add(xpsResult);
+        // }
+
         // Try swish path (Dhurandhar / LookMovie style)
         final swishResult = await _resolveSwishPath(embedPageBody);
         if (swishResult != null && swishResult.isNotEmpty) {
@@ -294,19 +300,25 @@ class TwoEmbedService {
   }
 
   String _appendReferer(String url, Map? headers) {
+    String res = url;
     if (headers != null) {
       final referer = headers['Referer'] ?? headers['referer'];
       if (referer is String && referer.isNotEmpty) {
-        return '$url|referer=$referer';
+        res = '$res|referer=$referer';
       }
+      final auth = headers['Authorization'] ?? headers['authorization'] ?? headers['auth'];
+      if (auth is String && auth.isNotEmpty) {
+        res = '$res|token=$auth';
+      }
+      return res;
     }
     // Fallback referer for moviesapi (IP hosts like 185.237.x.x, 45.156.x.x)
     final lower = url.toLowerCase();
     final isIp = RegExp(r'https?://\d+\.\d+\.\d+\.\d+').hasMatch(lower);
     if (lower.contains('185.237.107.') || lower.contains('185.237.') || lower.contains('45.156.') || isIp) {
-      return '$url|referer=https://vidnest.fun/';
+      return '$res|referer=https://vidnest.fun/';
     }
-    return url;
+    return res;
   }
 
   /// Extract the best available stream URL from decoded vidnest data.
@@ -430,24 +442,22 @@ class TwoEmbedService {
   Future<String?> _fetchText(String url, {Map<String, String> headers = const {}}) async {
     try {
       if (kIsWeb) {
-        // Route web requests through corsproxy.io CORS proxy to bypass browser CORS blocks
-        final String proxyUrl = 'https://corsproxy.io/?url=${Uri.encodeComponent(url)}';
-        _log('[TwoEmbedService] Web fetching via corsproxy.io: $proxyUrl');
-        try {
-          final response = await http.get(Uri.parse(proxyUrl));
-          // Accept both 200 and 403 statuses for Lookmovie because it serves the HTML even on 403
-          final bool isValidStatus = response.statusCode == 200 || 
-              (url.contains('lookmovie') && response.statusCode == 403 && response.body.contains('eval(function'));
-              
-          if (isValidStatus) {
-            return response.body;
+        final bool useCfWorker = url.contains('2embed.cc') || url.contains('xpass.top') || url.contains('lookmovie');
+        if (useCfWorker) {
+          const cfWorker = 'https://long-wind-ad98.avinashbiradar722.workers.dev/';
+          final proxyUrl = '$cfWorker?url=${Uri.encodeComponent(url)}';
+          _log('[TwoEmbedService] Web fetching 2Embed/Xpass/LookMovie via CF Worker: $proxyUrl');
+          try {
+            final response = await http.get(Uri.parse(proxyUrl));
+            if (response.statusCode == 200) {
+              return response.body;
+            }
+          } catch (e) {
+            _log('[TwoEmbedService] CF Worker fetch failed for $url: $e');
           }
-          _log('[TwoEmbedService] Web HTTP ${response.statusCode} fetching $url via corsproxy.io. Trying Vercel proxy fallback...');
-        } catch (err) {
-          _log('[TwoEmbedService] corsproxy.io proxy request failed: $err. Trying Vercel proxy fallback...');
         }
 
-        // Vercel proxy fallback
+        // Vercel proxy primary
         try {
           String vercelProxyUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(url)}';
           if (headers.containsKey('Referer')) {
@@ -465,9 +475,26 @@ class TwoEmbedService {
           if (isValidStatus) {
             return response.body;
           }
-          _log('[TwoEmbedService] Web HTTP ${response.statusCode} fetching $url via Vercel proxy');
+          _log('[TwoEmbedService] Web HTTP ${response.statusCode} fetching $url via Vercel proxy. Trying corsproxy.io fallback...');
         } catch (e) {
-          _log('[TwoEmbedService] Vercel proxy fallback failed: $e');
+          _log('[TwoEmbedService] Vercel proxy failed: $e. Trying corsproxy.io fallback...');
+        }
+
+        // Route web requests through corsproxy.io CORS proxy fallback
+        final String proxyUrl = 'https://corsproxy.io/?url=${Uri.encodeComponent(url)}';
+        _log('[TwoEmbedService] Web fetching via corsproxy.io fallback: $proxyUrl');
+        try {
+          final response = await http.get(Uri.parse(proxyUrl));
+          // Accept both 200 and 403 statuses for Lookmovie because it serves the HTML even on 403
+          final bool isValidStatus = response.statusCode == 200 || 
+              (url.contains('lookmovie') && response.statusCode == 403 && response.body.contains('eval(function'));
+              
+          if (isValidStatus) {
+            return response.body;
+          }
+          _log('[TwoEmbedService] Web HTTP ${response.statusCode} fetching $url via corsproxy.io fallback');
+        } catch (err) {
+          _log('[TwoEmbedService] corsproxy.io fallback request failed: $err');
         }
         return null;
       }
@@ -559,6 +586,12 @@ class TwoEmbedService {
       final List<String> combinedStreams = [];
 
       if (embedPageBody != null) {
+        // Try xps path (2embed/1x2.space style)
+        // final xpsResult = await _resolveXpsPath(embedPageBody);
+        // if (xpsResult != null && xpsResult.isNotEmpty) {
+        //   combinedStreams.add(xpsResult);
+        // }
+
         // Try swish path (LookMovie style)
         final swishResult = await _resolveSwishPath(embedPageBody);
         if (swishResult != null && swishResult.isNotEmpty) {
@@ -645,6 +678,144 @@ class TwoEmbedService {
     }
 
     _log('[TwoEmbedService] Vnest TV path: no stream found from any provider');
+    return null;
+  }
+
+  Future<String?> _resolveXpsPath(String embedPageBody) async {
+    try {
+      final xpsRegex = RegExp(
+        r'''(?:data-src|src|href)=["'](https://streamsrcs\.2embed\.cc/xps\?[^"']+)['"]''',
+        caseSensitive: false,
+      );
+      var xpsMatch = xpsRegex.firstMatch(embedPageBody);
+      String? xpsUrl;
+      if (xpsMatch != null) {
+        xpsUrl = xpsMatch.group(1);
+      } else {
+        final goRegex = RegExp(r'''go\(['"](https://streamsrcs\.2embed\.cc/xps\?[^'"]+)['"]\)''');
+        final goMatch = goRegex.firstMatch(embedPageBody);
+        if (goMatch != null) {
+          xpsUrl = goMatch.group(1);
+        }
+      }
+
+      if (xpsUrl == null) {
+        _log('[TwoEmbedService] No xps URL found in 2embed page');
+        return null;
+      }
+
+      _log('[TwoEmbedService] Found xps URL: $xpsUrl');
+
+      final xpsPageBody = await _fetchText(
+        xpsUrl,
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+          'Referer': 'https://www.2embed.cc/',
+        },
+      );
+      if (xpsPageBody == null) return null;
+
+      final iframeRegex = RegExp(
+        r'''<iframe[^>]*?src=["']((tt\d+|[\w\d_-]+)\?[^"']*)["']''',
+        caseSensitive: false,
+      );
+      final iframeMatch = iframeRegex.firstMatch(xpsPageBody);
+      if (iframeMatch == null) {
+        _log('[TwoEmbedService] No iframe src found in xps page');
+        return null;
+      }
+
+      final iframeSrc = iframeMatch.group(1)!;
+      _log('[TwoEmbedService] Found xps iframe src: $iframeSrc');
+
+      String xpassUrl;
+      if (iframeSrc.startsWith('http')) {
+        xpassUrl = iframeSrc;
+      } else {
+        final bool isTv = iframeSrc.contains('-') || xpsUrl.contains('tmdb=') || xpsPageBody.contains('/vcr?tmdb=');
+        final String type = isTv ? 'tv' : 'movie';
+        xpassUrl = 'https://play.xpass.top/e/$type/$iframeSrc';
+      }
+
+      _log('[TwoEmbedService] Loading xpass page: $xpassUrl');
+
+      final xpassPageBody = await _fetchText(
+        xpassUrl,
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+          'Referer': 'https://streamsrcs.2embed.cc/',
+        },
+      );
+      if (xpassPageBody == null) return null;
+
+      final backupsRegex = RegExp(r'var backups\s*=\s*(\[[\s\S]*?\])');
+      final backupsMatch = backupsRegex.firstMatch(xpassPageBody);
+      if (backupsMatch == null) {
+        _log('[TwoEmbedService] No backups array found in xpass page');
+        return null;
+      }
+
+      final String backupsJsonStr = backupsMatch.group(1)!;
+      List<dynamic> backups;
+      try {
+        backups = jsonDecode(backupsJsonStr) as List<dynamic>;
+      } catch (e) {
+        _log('[TwoEmbedService] Error decoding backups JSON: $e');
+        return null;
+      }
+
+      final List<String> resolvedUrls = [];
+
+      for (final backup in backups) {
+        if (backup is! Map) continue;
+        final name = backup['name'] ?? 'Stream';
+        final path = backup['url'];
+        if (path == null || path.toString().isEmpty) continue;
+
+        final String playlistUrl = 'https://play.xpass.top$path';
+        _log('[TwoEmbedService] Fetching playlist for backup $name: $playlistUrl');
+
+        final playlistBody = await _fetchText(
+          playlistUrl,
+          headers: {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Referer': 'https://play.xpass.top/',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        );
+        if (playlistBody == null) continue;
+
+        try {
+          final playlistJson = jsonDecode(playlistBody) as Map<String, dynamic>;
+          final playlistList = playlistJson['playlist'];
+          if (playlistList is List && playlistList.isNotEmpty) {
+            final sources = playlistList[0]['sources'];
+            if (sources is List) {
+              for (final source in sources) {
+                if (source is Map && source['file'] is String) {
+                  final fileUrl = source['file'] as String;
+                  // Skip invalid/error URLs (e.g. /video/error from CF-blocked servers)
+                  if (!fileUrl.startsWith('http')) continue;
+                  if (fileUrl.contains('/error') || fileUrl.contains('error')) continue;
+                  final String label = source['label'] ?? name;
+                  final bool isProxy = fileUrl.contains('use_proxy=true') || fileUrl.contains('.txt') || fileUrl.contains('cf-master');
+                  final String config = '$fileUrl|language=2Embed $label${isProxy ? '|use_proxy=true' : ''}';
+                  resolvedUrls.add(config);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          _log('[TwoEmbedService] Error parsing playlist JSON for $name: $e');
+        }
+      }
+
+      if (resolvedUrls.isNotEmpty) {
+        return resolvedUrls.join('||');
+      }
+    } catch (e) {
+      _log('[TwoEmbedService] Error in _resolveXpsPath: $e');
+    }
     return null;
   }
 }

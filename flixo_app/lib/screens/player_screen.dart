@@ -24,6 +24,7 @@ import 'stream_screen.dart';
 import '../services/local_streaming_proxy.dart';
 import '../services/archive_service.dart';
 import 'downloads_screen.dart';
+import '../services/two_embed_service.dart';
 
 
 class PlayerScreen extends StatefulWidget {
@@ -38,6 +39,8 @@ class PlayerScreen extends StatefulWidget {
   final String? subjectId;
   final String? detailPath;
   final int? resolution;
+  final int? season;
+  final int? episode;
 
   const PlayerScreen({
     super.key,
@@ -51,6 +54,8 @@ class PlayerScreen extends StatefulWidget {
     this.subjectId,
     this.detailPath,
     this.resolution,
+    this.season,
+    this.episode,
   });
 
   @override
@@ -115,6 +120,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    registerPointerInterceptor();
     _forceLandscape();
     _startControlsTimer();
 
@@ -251,7 +257,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _isDirectPlayback = true;
       final bool isWindowsRefresh = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-      if ((kIsWeb || isWindowsRefresh) && widget.subjectId != null && widget.subjectId!.isNotEmpty) {
+      if ((kIsWeb || isWindowsRefresh) && widget.subjectId != null && widget.subjectId!.isNotEmpty && widget.subjectId != '2embed') {
         // Force refresh URL at playtime — on Windows this also ensures the sign is for IPv4
         setState(() {
           _loading = true;
@@ -281,6 +287,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else {
       _loadStreams();
     }
+    
+    // Fetch alternative sources in the background
+    _fetchAlternativeSources();
   }
 
   /// Detect if a URL is a magnet link or info hash
@@ -501,10 +510,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return currentUrl;
   }
 
-  Future<void> _initNetworkPlayer(String url) async {
+  Future<void> _initNetworkPlayer(String url, {String? subjectId}) async {
     final prefs = await SharedPreferences.getInstance();
     final cfProxyUrl = prefs.getString('cloudflare_proxy_url') ?? '';
     final bool hasCfProxy = cfProxyUrl.isNotEmpty;
+
+    final String currentSubjectId = subjectId ?? (widget.subjectId ?? '');
 
     // Extract actual url and referer from pipe parameters
     String cleanUrl = url;
@@ -538,12 +549,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         cleanUrl.contains('tiktokcdn.com') ||
         cleanUrl.contains('laika422mon.com') ||
         cleanUrl.contains('vidnest.fun') ||
-        widget.subjectId == '2embed' ||
+        currentSubjectId == '2embed' ||
         isIp;
 
     if (is2EmbedOrLookMovie) {
-      // For 2embed/LookMovie, we only use the piped referer. Never fallback to MovieBox referrer!
-      if (!url.contains('|referer=')) {
+      // For 2embed/LookMovie, never fallback to MovieBox referrer!
+      if (cleanReferer != null && (cleanReferer.contains('aoneroom.com') || cleanReferer.contains('movieboxpro.app') || cleanReferer.contains('hakunaymatata.com'))) {
         cleanReferer = null;
       }
     }
@@ -694,28 +705,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (kIsWeb) {
         final bool isMovieBox = cleanUrl.contains('hakunaymatata.com') || cleanUrl.contains('aoneroom.com');
         final bool isArchive = cleanUrl.contains('archive.org');
-        final bool is2Embed = cleanUrl.contains('korso420dim.com') || cleanUrl.contains('stream2');
+        final bool is2Embed = cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('stream2') || cleanUrl.contains('2embed.cc') || cleanUrl.contains('2embed.skin') || cleanUrl.contains('1x2.space') || widget.subjectId == '2embed';
         final bool isMp4 = cleanUrl.toLowerCase().contains('.mp4');
         
-        if (is2Embed) {
-          // 2Embed HLS streams play directly on Web
-          playUrl = cleanUrl;
-          debugPrint('[PlayerScreen] Web - Playing 2Embed HLS stream directly: $playUrl');
+        if (isMovieBox) {
+          // MovieBox CDN (hakunaymatata/aoneroom) always goes through Vercel proxy with token
+          final String ref = cleanReferer ?? 'https://h5.aoneroom.com/';
+          final String authParam = MovieBoxService.token != null ? '&auth=${Uri.encodeComponent('Bearer ${MovieBoxService.token}')}' : '';
+          playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}$authParam';
+          debugPrint('[PlayerScreen] Web - Routing MovieBox CDN stream through Vercel Proxy: $playUrl');
         } else if (isMp4) {
-          // Play direct MP4 links natively without Vercel proxy, as browsers handle MP4s natively
+          // Play direct MP4 links natively without proxy
           playUrl = cleanUrl;
           debugPrint('[PlayerScreen] Web - Playing MP4 stream directly: $playUrl');
+        } else if (is2Embed) {
+          // Route 2Embed HLS streams through movienest.app proxy which has m3u8 rewriter for relative URLs
+          final String ref = cleanUrl.contains('lookmovie') ? 'https://lookmovie2.skin/' : (cleanReferer ?? 'https://lookmovie2.skin/');
+          playUrl = 'https://www.movienest.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
+          debugPrint('[PlayerScreen] Web - Routing 2Embed HLS stream through MovieNest Proxy: $playUrl');
+        } else if (cleanUrl.contains('workers.dev')) {
+          // Already proxied via Cloudflare Worker: play directly (no Vercel proxy wrapping)
+          playUrl = cleanUrl;
+          debugPrint('[PlayerScreen] Web - Playing CF Worker proxied stream directly: $playUrl');
         } else if (isArchive) {
-          // Route Archive.org streams through Cloudflare Worker (corsproxy.io blocks archive with 403)
+          // Route Archive.org streams through Cloudflare Worker
           const cfWorker = 'https://long-wind-ad98.avinashbiradar722.workers.dev/';
           playUrl = '$cfWorker?url=${Uri.encodeComponent(cleanUrl)}';
           debugPrint('[PlayerScreen] Web - Routing Archive stream through CF Worker: $playUrl');
-        } else if (isMovieBox) {
-          // Use Vercel proxy for MovieBox streams on web as well (corsproxy.io blocks MovieBox with 403)
-          playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(cleanReferer ?? 'https://h5.aoneroom.com/')}';
-          debugPrint('[PlayerScreen] Web - Routing MovieBox stream through Vercel Proxy: $playUrl');
         } else {
-          // General stream: route through Vercel proxy as primary fallback since corsproxy.io is blocking domains
+          // General stream: route through Vercel proxy
           playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(cleanUrl)}';
           if (cleanReferer != null) {
             playUrl += '&referer=${Uri.encodeComponent(cleanReferer)}';
@@ -1136,10 +1154,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: _buildPlayer(),
               ),
             ),
+            if (!_areControlsVisible && kIsWeb)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 15,
+                child: _wrapWithPointerInterceptor(
+                  MouseRegion(
+                    onHover: (_) {
+                      setState(() {
+                        _areControlsVisible = true;
+                      });
+                      _startControlsTimer();
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        setState(() {
+                          _areControlsVisible = true;
+                        });
+                        _startControlsTimer();
+                      },
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ),
             if (_areControlsVisible)
-              Positioned(top: 0, left: 0, right: 0, child: _buildTopBar()),
+              Positioned(top: 0, left: 0, right: 0, child: _wrapWithPointerInterceptor(_buildTopBar())),
             if (_areControlsVisible && !_isDirectPlayback && _streams.isNotEmpty)
-              Positioned(bottom: 10, left: 0, right: 0, child: _buildQualityBar()),
+              Positioned(bottom: 10, left: 0, right: 0, child: _wrapWithPointerInterceptor(_buildQualityBar())),
           ]),
         ),
       ),
@@ -1506,6 +1551,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     ));
   }
 
+
+  Widget _wrapWithPointerInterceptor(Widget child) {
+    if (!kIsWeb) return child;
+    return Stack(
+      children: [
+        const Positioned.fill(
+          child: HtmlElementView(viewType: 'pointer-interceptor'),
+        ),
+        child,
+      ],
+    );
+  }
+
   Widget _buildTopBar() {
     return Container(
       decoration: const BoxDecoration(
@@ -1610,7 +1668,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return StatefulBuilder(
+        return _wrapWithPointerInterceptor(StatefulBuilder(
           builder: (context, setModalState) {
             return SafeArea(
               child: Padding(
@@ -1619,15 +1677,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: Text(
-                        'Select Audio Track',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Select Audio Track',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white70),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                     ),
                     const Divider(color: Colors.white10, height: 16),
@@ -1698,7 +1765,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             );
           },
-        );
+        ));
       },
     );
   }
@@ -1878,7 +1945,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
+        return _wrapWithPointerInterceptor(Container(
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.95),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -1895,13 +1962,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     children: [
                       const Icon(Icons.audiotrack, color: AppColors.accent, size: 22),
                       const SizedBox(width: 10),
-                      const Text(
-                        'Select Audio Language',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'Select Audio Language',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -1970,13 +2045,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
 
   Future<void> _parseHlsResolutions(String originalUrl, String? referer) async {
     try {
+      if (kIsWeb) return; // Browsers / HLS.js handle quality selection automatically
       final lower = originalUrl.toLowerCase();
       if (!lower.contains('.m3u8')) return;
 
@@ -2132,7 +2208,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
+        return _wrapWithPointerInterceptor(Container(
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.95),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -2149,13 +2225,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     children: [
                       const Icon(Icons.settings, color: AppColors.accent, size: 22),
                       const SizedBox(width: 10),
-                      const Text(
-                        'Select Video Quality',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'Select Video Quality',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -2224,7 +2308,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -2239,7 +2323,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final currentRate = _mediaKitPlayer!.state.rate;
         final rates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
         
-        return Container(
+        return _wrapWithPointerInterceptor(Container(
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.95),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -2250,11 +2334,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Text(
-                    'Playback Speed',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Playback Speed',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(color: Colors.white10, height: 1),
@@ -2289,7 +2382,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -2311,6 +2404,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
         ArchiveService.resolveStreams(title, year: yearVal, imdbId: imdb.isNotEmpty ? imdb : null),
       ]);
+
       if (mounted) {
         setState(() {
           _bgTorrents = results[0] as List<TorrentStream>;
@@ -2342,7 +2436,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (oldVc != null) await oldVc.dispose();
       if (oldCc != null) oldCc.dispose();
       
-      await _initNetworkPlayer(url);
+      await _initNetworkPlayer(url, subjectId: subjectId);
       
       if (_webVideoPlayerController != null) {
         await _webVideoPlayerController!.seekTo(position);
@@ -2471,7 +2565,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
       builder: (BuildContext context) {
         if (_bgLoading) {
-          return const SafeArea(
+          return _wrapWithPointerInterceptor(const SafeArea(
             child: Center(
               child: Padding(
                 padding: EdgeInsets.all(24.0),
@@ -2485,23 +2579,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
             ),
-          );
+          ));
         }
 
-        return SafeArea(
+        return _wrapWithPointerInterceptor(SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text(
-                  'Select Other Link',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 10, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Other Link',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ),
               const Divider(color: AppColors.border),
@@ -2544,6 +2647,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         );
                       }));
                     }
+
+
 
                     // Archive
                     if (_bgArchives.isNotEmpty) {
@@ -2622,7 +2727,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }
