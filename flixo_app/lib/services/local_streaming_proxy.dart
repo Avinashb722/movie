@@ -157,7 +157,7 @@ class LocalStreamingProxy {
       } else if (useVercel) {
         // Vercel proxy handles headers; local proxy sends clean request to Vercel
         clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-      } else if (isAoneroom) {
+      } else if (isAoneroom && (reqReferer == null || reqReferer.contains('moviebox') || reqReferer.contains('aoneroom') || reqReferer.contains('movienest'))) {
         _lastReferer = 'https://www.movieboxpro.app/';
         clientReq.headers.set('Referer', _lastReferer);
         clientReq.headers.set('Origin', 'https://www.movieboxpro.app');

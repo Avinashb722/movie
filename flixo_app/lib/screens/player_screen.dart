@@ -538,6 +538,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         cleanUrl.contains('tiktokcdn.com') ||
         cleanUrl.contains('laika422mon.com') ||
         cleanUrl.contains('vidnest.fun') ||
+        widget.subjectId == '2embed' ||
         isIp;
 
     if (is2EmbedOrLookMovie) {
@@ -665,17 +666,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       // Set headers for direct playback
       final bool isMovieBoxUrl = (cleanUrl.contains('hakunaymatata.com') ||
-          cleanUrl.contains('aoneroom.com') ||
-          (widget.referer != null && !is2EmbedOrLookMovie)) && !is2EmbedOrLookMovie && !cleanUrl.contains('korso420dim.com') && !cleanUrl.contains('cdn30092');
+          cleanUrl.contains('aoneroom.com')) && 
+          (cleanReferer == null || cleanReferer.contains('moviebox') || cleanReferer.contains('aoneroom') || cleanReferer.contains('movienest'));
+
       if (isMovieBoxUrl) {
         playHeaders['Referer'] = 'https://www.movieboxpro.app/';
-        playHeaders['User-Agent'] = 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36';
+        playHeaders['User-Agent'] = 'okhttp/4.10.0';
         playHeaders['Origin'] = 'https://www.movieboxpro.app';
-        // Cookie header helps some CDNs validate the session
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Range'] = 'bytes=0-';
-      } else if (is2EmbedOrLookMovie) {
+      } else if (is2EmbedOrLookMovie || (cleanReferer != null && !cleanReferer.contains('moviebox') && !cleanReferer.contains('aoneroom'))) {
         playHeaders['Referer'] = cleanReferer ?? 'https://lookmovie2.skin/';
         playHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
         String origin = 'https://lookmovie2.skin';

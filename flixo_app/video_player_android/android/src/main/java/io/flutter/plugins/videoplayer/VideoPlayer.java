@@ -159,9 +159,22 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
                               urlString.contains("aoneroom.com") || 
                               urlString.contains("movieboxpro.app");
 
-          if (isMovieBox) {
-            resolvedHeaders.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-            resolvedHeaders.put("Referer", "https://fmoviesunblocked.net/");
+          boolean hasCustomReferer = false;
+          if (originalHeaders != null) {
+            String ref = originalHeaders.get("Referer");
+            if (ref == null) ref = originalHeaders.get("referer");
+            if (ref != null && !ref.contains("movieboxpro.app") && !ref.contains("aoneroom.com") && !ref.contains("fmoviesunblocked.net") && !ref.contains("movienest")) {
+              hasCustomReferer = true;
+            }
+          }
+
+          if (isMovieBox && !hasCustomReferer) {
+            resolvedHeaders.put("User-Agent", "okhttp/4.10.0");
+            if (urlString.contains("/download/") || urlString.contains("/bt/") || urlString.contains("/convert-")) {
+              resolvedHeaders.put("Referer", "https://fmoviesunblocked.net/");
+            } else {
+              resolvedHeaders.put("Referer", "https://h5.aoneroom.com/");
+            }
             resolvedHeaders.put("Origin", "https://h5.aoneroom.com");
             resolvedHeaders.put("Accept", "*/*");
           } else {

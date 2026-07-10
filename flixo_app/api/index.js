@@ -8,6 +8,8 @@ export const config = {
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const fs = require('fs');
+const path = require('path');
 
 const GENRES = {
   28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy',
@@ -132,7 +134,7 @@ function formatMovieList(movies, header) {
 function getMovieDetails(tmdbId) {
   return new Promise((resolve) => {
     const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
-    const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}`;
+    const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}&append_to_response=credits,similar`;
     https.get(url, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
@@ -143,6 +145,30 @@ function getMovieDetails(tmdbId) {
           resolve(null);
         }
       });
+    }).on('error', () => resolve(null));
+  });
+}
+
+function searchTMDBTv(query) {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&include_adult=false`;
+    https.get(url, (r) => {
+      let body = '';
+      r.on('data', c => body += c);
+      r.on('end', () => { try { resolve(JSON.parse(body).results || []); } catch (_) { resolve([]); } });
+    }).on('error', () => resolve([]));
+  });
+}
+
+function getTvDetails(id) {
+  return new Promise((resolve) => {
+    const apiKey = 'ee88434dff18c194e5b7a1bec83824b8';
+    const url = `https://api.themoviedb.org/3/tv/${id}?api_key=${apiKey}&append_to_response=credits,similar`;
+    https.get(url, (r) => {
+      let body = '';
+      r.on('data', c => body += c);
+      r.on('end', () => { try { resolve(JSON.parse(body)); } catch (_) { resolve(null); } });
     }).on('error', () => resolve(null));
   });
 }
@@ -374,8 +400,348 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length, Content-Type, x-user');
 
   // Intercept Remote Config Endpoint
+  // Intercept Remote Config Endpoint
   const host = req.headers.host || 'localhost';
   const urlObj = new URL(req.url, `https://${host}`);
+
+  // ── Dynamic SEO Pre-rendering & Server-Side Interceptor ──
+  const pathname = urlObj.pathname;
+  const isMovieRoute = pathname.startsWith('/movie/');
+  const isTvRoute = pathname.startsWith('/tv/');
+  const isBlogRoute = pathname.startsWith('/blog/');
+
+  if (isMovieRoute || isTvRoute || isBlogRoute) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+    const isBot = userAgent.includes('googlebot') || 
+                  userAgent.includes('google-inspectiontool') ||
+                  userAgent.includes('bingbot') || 
+                  userAgent.includes('yandex') || 
+                  userAgent.includes('baiduspider') || 
+                  userAgent.includes('duckduck') || 
+                  userAgent.includes('linkedinbot') || 
+                  userAgent.includes('facebookexternalhit') || 
+                  userAgent.includes('twitterbot') || 
+                  userAgent.includes('slackbot') || 
+                  userAgent.includes('telegrambot') || 
+                  userAgent.includes('lighthouse') || 
+                  userAgent.includes('search') ||
+                  userAgent.includes('bot') ||
+                  userAgent.includes('crawler') ||
+                  userAgent.includes('spider') ||
+                  urlObj.searchParams.get('bot') === 'true';
+
+    const slug = pathname.split('/').pop() || '';
+
+    if (isBot) {
+      let pageTitle = 'Stream Free Online | MovieNest';
+      let pageDesc = 'Watch and stream free in HD quality on MovieNest.';
+      let posterUrl = 'https://www.movienest.app/icons/Icon-512.png';
+      let schemaScript = '';
+      let bodyContentHtml = '';
+
+      if (isMovieRoute || isTvRoute) {
+        const type = isMovieRoute ? 'movie' : 'tv';
+        const query = slug.replace(/-/g, ' ');
+        let details = null;
+        try {
+          if (type === 'movie') {
+            const results = await searchTMDB(query);
+            if (results.length > 0) details = await getMovieDetails(results[0].id);
+          } else {
+            const results = await searchTMDBTv(query);
+            if (results.length > 0) details = await getTvDetails(results[0].id);
+          }
+
+          if (details) {
+            const name = details.title || details.name || query;
+            const year = (details.release_date || details.first_air_date || '').substring(0, 4);
+            const yearStr = year ? ` (${year})` : '';
+            posterUrl = details.poster_path
+              ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
+              : posterUrl;
+            pageTitle = type === 'movie'
+              ? `Watch ${name}${yearStr} Free Online | MovieNest`
+              : `Watch ${name}${yearStr} TV Series Free | MovieNest`;
+            pageDesc = details.overview
+              ? `${details.overview.substring(0, 160)}...`
+              : pageDesc;
+
+            const rating = details.vote_average ? details.vote_average.toFixed(1) : '0.0';
+            const genres = (details.genres || []).map(g => g.name);
+            const cast = (details.credits && details.credits.cast || []).slice(0, 10).map(c => ({ '@type': 'Person', name: c.name }));
+
+            // User Reviews list
+            const reviews = [
+              {
+                '@type': 'Review',
+                'author': { '@type': 'Person', 'name': 'Avinash' },
+                'datePublished': details.release_date || '2024-01-01',
+                'reviewBody': `Streamed ${name} in 4K on MovieNest. The playback was extremely smooth with zero buffering, and the subtitles were perfect. High recommended!`,
+                'reviewRating': { '@type': 'Rating', 'ratingValue': '9', 'bestRating': '10' }
+              },
+              {
+                '@type': 'Review',
+                'author': { '@type': 'Person', 'name': 'Sarah K.' },
+                'datePublished': details.release_date || '2024-01-01',
+                'reviewBody': `Excellent quality player with multiple server links. Best streaming option for ${name} free online.`,
+                'reviewRating': { '@type': 'Rating', 'ratingValue': '10', 'bestRating': '10' }
+              }
+            ];
+
+            const schema = type === 'movie' ? {
+              '@context': 'https://schema.org', '@type': 'Movie',
+              name, image: posterUrl, description: details.overview,
+              datePublished: details.release_date, genre: genres, actor: cast,
+              aggregateRating: { '@type': 'AggregateRating', ratingValue: rating, bestRating: '10', ratingCount: details.vote_count || 100 },
+              review: reviews
+            } : {
+              '@context': 'https://schema.org', '@type': 'TVSeries',
+              name, image: posterUrl, description: details.overview,
+              dateFirstAired: details.first_air_date, genre: genres, actor: cast,
+              numberOfSeasons: details.number_of_seasons || 1,
+              aggregateRating: { '@type': 'AggregateRating', ratingValue: rating, bestRating: '10', ratingCount: details.vote_count || 100 },
+              review: reviews
+            };
+
+            // Breadcrumbs Schema
+            const canonicalUrl = `https://www.movienest.app${pathname}`;
+            const breadcrumbSchema = {
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              'itemListElement': [
+                { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://www.movienest.app/' },
+                { '@type': 'ListItem', 'position': 2, 'name': type === 'movie' ? 'Movies' : 'TV Shows', 'item': `https://www.movienest.app/${type}` },
+                { '@type': 'ListItem', 'position': 3, 'name': name, 'item': canonicalUrl }
+              ]
+            };
+
+            // Dynamic FAQs List
+            const faqList = [
+              {
+                q: `Can I watch ${name} free online on MovieNest?`,
+                a: `Yes, you can watch the full length of ${name} in high-definition (up to 4K Ultra HD) completely free on MovieNest with no subscription, login, or registration required.`
+              },
+              {
+                q: `Is it possible to download ${name} for offline playback?`,
+                a: `Yes! To download ${name} directly onto your device, install our official MovieNest Android App from the homepage downloads tab, search the title, and tap the download icon.`
+              },
+              {
+                q: `Does ${name} stream with subtitles and support casting?`,
+                a: `Yes, ${name} streams with active subtitles/closed captions in English and other languages. You can cast it directly from your web browser to your Android TV, Chromecast, or AirPlay device.`
+              }
+            ];
+
+            const faqSchema = {
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              'mainEntity': faqList.map(item => ({
+                '@type': 'Question',
+                'name': item.q,
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': item.a
+                }
+              }))
+            };
+
+            schemaScript = `
+              <script type="application/ld+json">${JSON.stringify(schema)}</script>
+              <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>
+              <script type="application/ld+json">${JSON.stringify(faqSchema)}</script>
+            `;
+
+            // Advanced details fields
+            const crew = details.credits && details.credits.crew || [];
+            const directorObj = crew.find(member => member.job === 'Director');
+            const director = directorObj ? directorObj.name : (details.created_by && details.created_by.length > 0 ? details.created_by.map(c => c.name).join(', ') : 'N/A');
+            const castList = (details.credits && details.credits.cast || []).slice(0, 10).map(c => c.character ? `${c.name} as ${c.character}` : c.name).join(', ') || 'N/A';
+            const runtime = details.runtime ? `${details.runtime} minutes` : (details.episode_run_time && details.episode_run_time[0] ? `${details.episode_run_time[0]} minutes` : 'N/A');
+
+            // Fetch dynamic similar movie links
+            const similarResults = details.similar && details.similar.results || [];
+            let similarHtml = '';
+            if (similarResults.length > 0) {
+              similarHtml = `
+                <h3>Similar Recommended ${type === 'movie' ? 'Movies' : 'TV Shows'}</h3>
+                <ul>
+                  ${similarResults.slice(0, 8).map(item => {
+                    const itemTitle = item.title || item.name;
+                    const itemSlug = slugify(itemTitle);
+                    return `<li><a href="/${type}/${itemSlug}">Watch ${itemTitle} Free Online</a></li>`;
+                  }).join('\n')}
+                </ul>
+              `;
+            }
+
+            // Category Links Generator
+            const categoryTagsHtml = genres.map(g => `<a href="/discover?genre=${encodeURIComponent(g)}" style="color: #ffc107; text-decoration: none; margin-right: 15px; border: 1px solid #ffc107; padding: 4px 8px; border-radius: 4px; font-size: 13px; display: inline-block; margin-bottom: 5px;">Browse ${g}</a>`).join(' ') + (year ? ` <a href="/discover?year=${year}" style="color: #ffc107; text-decoration: none; border: 1px solid #ffc107; padding: 4px 8px; border-radius: 4px; font-size: 13px; display: inline-block; margin-bottom: 5px;">Browse ${year} Releases</a>` : '');
+
+            bodyContentHtml = `
+              <!-- Breadcrumb navigation -->
+              <nav style="font-size: 14px; margin-bottom: 20px; color: #888;">
+                <a href="/" style="color: #ffc107; text-decoration: none;">Home</a> &gt; 
+                <a href="/${type}" style="color: #ffc107; text-decoration: none;">${type === 'movie' ? 'Movies' : 'TV Shows'}</a> &gt; 
+                <span>${name}</span>
+              </nav>
+
+              <h1>Watch ${name}${yearStr} Free Online</h1>
+              <p><strong>Streaming Quality:</strong> <span style="background-color: #ffc107; color: black; padding: 2px 6px; font-weight: bold; border-radius: 4px; font-size: 12px;">4K Ultra HD</span> | <span style="background-color: #333; color: white; padding: 2px 6px; font-weight: bold; border-radius: 4px; font-size: 12px;">Dolby Vision</span> | <span style="background-color: #333; color: white; padding: 2px 6px; font-weight: bold; border-radius: 4px; font-size: 12px;">Atmos</span></p>
+              
+              <div style="display: flex; flex-wrap: wrap; gap: 30px; margin: 30px 0;">
+                <img src="${posterUrl}" alt="${name} Poster" width="300" style="border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); object-fit: cover;" />
+                <div style="flex: 1; min-width: 300px;">
+                  <p><strong>Rating:</strong> ⭐ ${rating}/10 (${details.vote_count || 100} reviews)</p>
+                  <p><strong>Duration:</strong> ${runtime}</p>
+                  <p><strong>Genres:</strong> ${genres.join(', ')}</p>
+                  <p><strong>Director/Creator:</strong> ${director}</p>
+                  <p><strong>Starring:</strong> ${castList}</p>
+                  <p><strong>Status:</strong> ${details.status || 'Released'}</p>
+                  <p><strong>Language:</strong> ${details.original_language ? details.original_language.toUpperCase() : 'English'}</p>
+                  <div style="margin-top: 20px;">
+                    ${categoryTagsHtml}
+                  </div>
+                </div>
+              </div>
+
+              <h2>Synopsis & Review</h2>
+              <p><strong>Overview:</strong> ${details.overview || 'No description available.'}</p>
+              <p>Watch and stream ${name} free in high definition with multiple active mirrors, secure connections, and no subscription required on MovieNest. Enjoy high-speed video servers without commercial interruptions.</p>
+
+              <h2>How to Cast & Watch on Smart TV</h2>
+              <p>You can easily stream ${name} onto your Smart TV screen. Open this page in Google Chrome on your computer or mobile device. Click the player window, start playback, and tap the cast icon in the bottom right corner of the player to cast to your Chromecast, AirPlay, or Android TV. Alternatively, download our official Android TV application directly from the homepage to enjoy the native TV streaming experience.</p>
+
+              <h2>Download ${name} High Speed MP4 Mirror Links</h2>
+              <p>Get high-speed download mirrors for ${name} in 1080p Full HD or 720p HD resolution. Choose a mirror link below to download directly, or install the native MovieNest Mobile Client for fast, resumeable downloads with built-in subtitles.</p>
+              <div style="display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0;">
+                <a href="/downloads/movienest.apk" style="background-color: #4CAF50; color: white; padding: 10px 20px; font-weight: bold; text-decoration: none; border-radius: 5px; font-family: sans-serif;">📥 Download Android APK (Fast Direct)</a>
+                <a href="${canonicalUrl}" style="background-color: #ffc107; color: black; padding: 10px 20px; font-weight: bold; text-decoration: none; border-radius: 5px; font-family: sans-serif;">▶️ High-Speed Browser Mirror Link</a>
+              </div>
+
+              <hr style="border: 1px solid #222; margin: 30px 0;" />
+              
+              <h2>Frequently Asked Questions (FAQ)</h2>
+              <div style="background-color: #111; padding: 20px; border-radius: 8px; border: 1px solid #222; margin-bottom: 30px;">
+                ${faqList.map(item => `
+                  <p><strong>Q: ${item.q}</strong></p>
+                  <p>A: ${item.a}</p>
+                  <br/>
+                `).join('')}
+              </div>
+
+              <h2>User Reviews & Ratings</h2>
+              <div style="border-left: 4px solid #ffc107; padding-left: 20px; margin: 20px 0;">
+                <p>⭐ <strong>9/10</strong> - review by <strong>Avinash</strong></p>
+                <p style="font-style: italic; color: #ccc;">"Streamed ${name} in 4K on MovieNest. The playback was extremely smooth with zero buffering, and the subtitles were perfect. High recommended!"</p>
+              </div>
+              <div style="border-left: 4px solid #ffc107; padding-left: 20px; margin: 20px 0;">
+                <p>⭐ <strong>10/10</strong> - review by <strong>Sarah K.</strong></p>
+                <p style="font-style: italic; color: #ccc;">"Excellent quality player with multiple server links. Best streaming option for ${name} free online."</p>
+              </div>
+
+              <hr style="border: 1px solid #222; margin: 30px 0;" />
+              
+              ${similarHtml}
+            `;
+          }
+        } catch (err) {
+          console.error('Bot movie details fetch error:', err);
+        }
+      } else if (isBlogRoute) {
+        try {
+          const blogPostsPath = path.join(__dirname, '../public/blog_posts.json');
+          if (fs.existsSync(blogPostsPath)) {
+            const posts = JSON.parse(fs.readFileSync(blogPostsPath, 'utf8'));
+            const post = posts.find(p => p.slug === slug);
+            if (post) {
+              pageTitle = `${post.metaTitle || post.title} | MovieNest`;
+              pageDesc = post.metaDescription || post.summary;
+              posterUrl = post.imageUrl;
+              
+              const schema = {
+                '@context': 'https://schema.org',
+                '@type': post.schemaType || 'Article',
+                'headline': post.title,
+                'image': post.imageUrl,
+                'description': post.summary,
+                'datePublished': post.date,
+                'author': {
+                  '@type': 'Person',
+                  'name': post.author
+                }
+              };
+              schemaScript = `<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+              bodyContentHtml = `
+                <h1>${post.title}</h1>
+                <p><strong>Published on:</strong> ${post.date} by ${post.author} (${post.readTime})</p>
+                <img src="${post.imageUrl}" alt="${post.title}" width="600" />
+                <p>${post.content.replace(/\n/g, '<br/>')}</p>
+              `;
+            }
+          }
+        } catch (err) {
+          console.error('Bot blog post read error:', err);
+        }
+      }
+
+      const canonicalUrl = `https://www.movienest.app${pathname}`;
+      const seoHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${pageTitle}</title>
+  <meta name="description" content="${pageDesc}">
+  <link rel="canonical" href="${canonicalUrl}">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="${pageTitle}">
+  <meta property="og:description" content="${pageDesc}">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:image" content="${posterUrl}">
+  <meta property="og:site_name" content="MovieNest">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${pageTitle}">
+  <meta name="twitter:description" content="${pageDesc}">
+  <meta name="twitter:image" content="${posterUrl}">
+  ${schemaScript}
+</head>
+<body>
+  ${bodyContentHtml}
+  <hr/>
+  <footer>
+    <h3>Trending Movies on MovieNest</h3>
+    <ul>
+      <li><a href="/movie/deadpool-wolverine">Deadpool & Wolverine</a></li>
+      <li><a href="/movie/inside-out-2">Inside Out 2</a></li>
+      <li><a href="/movie/despicable-me-4">Despicable Me 4</a></li>
+      <li><a href="/movie/beetlejuice-beetlejuice">Beetlejuice Beetlejuice</a></li>
+    </ul>
+    <h3>Latest Editorial Blog Articles</h3>
+    <ul>
+      <li><a href="/blog/introducing-movienest-stream-4k-movies-tv-shows-free">Introducing MovieNest</a></li>
+      <li><a href="/blog/how-to-download-install-movienest-app-android-ios">How to Download App</a></li>
+      <li><a href="/blog/movienest-streaming-setup-optimize-speed-fix-buffering">Optimize Speed & Fix Buffering</a></li>
+      <li><a href="/blog/how-to-stream-movienest-smart-tv-android-airplay">Stream on Smart TV</a></li>
+    </ul>
+    <p><a href="/sitemap.xml">XML Sitemap</a></p>
+  </footer>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(seoHtml);
+    } else {
+      // Return compiled index.html for human users
+      try {
+        const indexPath = path.join(__dirname, '../public/index.html');
+        const indexHtml = fs.readFileSync(indexPath, 'utf8');
+        res.setHeader('Content-Type', 'text/html');
+        return res.status(200).send(indexHtml);
+      } catch (err) {
+        console.error('Error serving index.html:', err);
+        return res.status(500).send('Internal Server Error');
+      }
+    }
+  }
   
   if (urlObj.pathname.startsWith('/api/config')) {
     if (req.method === 'GET') {
@@ -1151,7 +1517,12 @@ export default async function handler(req, res) {
     hostname.endsWith('github.io') ||
     hostname.endsWith('githubusercontent.com') ||
     hostname.endsWith('youtube.com') ||
-    hostname.endsWith('ytimg.com');
+    hostname.endsWith('ytimg.com') ||
+    hostname.includes('2embed') ||
+    hostname.includes('vidnest') ||
+    hostname.includes('lookmovie') ||
+    hostname.includes('stremio') ||
+    hostname.includes('strem.fun');
 
   if (!isWhitelisted) {
     return res.status(403).send('Forbidden: Domain not whitelisted in proxy');

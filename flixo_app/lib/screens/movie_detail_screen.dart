@@ -1128,7 +1128,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   resolution: resVal,
                   size: 'Direct Stream',
                   language: lang,
-                  referer: 'https://h5.aoneroom.com/',
+                  referer: parsedReferer,
                   subjectId: '2embed', // Marks it for proper proxy headers
                   detailPath: '',
                 ));

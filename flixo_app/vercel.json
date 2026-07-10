@@ -5,6 +5,9 @@
     { "src": "api/index.js", "use": "@vercel/node" }
   ],
   "routes": [
+    { "src": "/movie/(.*)", "dest": "/api/index.js" },
+    { "src": "/tv/(.*)", "dest": "/api/index.js" },
+    { "src": "/blog/(.*)", "dest": "/api/index.js" },
     { "src": "/.well-known/assetlinks.json", "dest": "/public/assetlinks.json" },
     { "src": "/downloads/(.*)", "dest": "/public/downloads/$1" },
     { "src": "/admin", "dest": "/public/admin.html" },
