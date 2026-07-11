@@ -1071,78 +1071,94 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         archives = results[2] as List<ArchiveStream>;
         final twoEmbedStream = results[3] as String?;
 
+
+
         if (twoEmbedStream != null && twoEmbedStream.isNotEmpty) {
+          final existingUrls = movieBoxStreams.map((s) => s.url).toSet();
           final configs = twoEmbedStream.split('||');
           for (final cfg in configs) {
-            if (cfg.trim().isEmpty) continue;
-            final parts = cfg.split('|');
-            final url = parts[0].trim();
-            if (url.isNotEmpty) {
-              String lang = 'Multi/English';
-              int resVal = 720;
-              String parsedReferer = 'https://lookmovie2.skin/';
-              for (int i = 1; i < parts.length; i++) {
-                final p = parts[i].trim();
-                if (p.startsWith('language=')) {
-                  lang = p.substring(9);
-                  if (lang.contains('(1080p)')) {
-                    resVal = 1080;
-                  } else if (lang.contains('(720p)')) {
-                    resVal = 720;
-                  } else if (lang.contains('(480p)')) {
-                    resVal = 480;
-                  } else if (lang.contains('(360p)')) {
-                    resVal = 360;
+            try {
+              if (cfg.trim().isEmpty) continue;
+              final parts = cfg.split('|');
+              final url = parts[0].trim();
+              if (url.isNotEmpty && !existingUrls.contains(url)) {
+                existingUrls.add(url);
+                String lang = 'Multi/English';
+                int resVal = 720;
+                String parsedReferer = 'https://new.vidnest.fun/';
+                bool useProxy = false;
+                for (int i = 1; i < parts.length; i++) {
+                  final p = parts[i].trim();
+                  if (p.startsWith('language=')) {
+                    lang = p.substring(9);
+                    if (lang.contains('(1080p)')) {
+                      resVal = 1080;
+                    } else if (lang.contains('(720p)')) {
+                      resVal = 720;
+                    } else if (lang.contains('(480p)')) {
+                      resVal = 480;
+                    } else if (lang.contains('(360p)')) {
+                      resVal = 360;
+                    }
+                  } else if (p.startsWith('referer=')) {
+                    parsedReferer = p.substring(8);
+                  } else if (p == 'use_proxy=true') {
+                    useProxy = true;
                   }
-                } else if (p.startsWith('referer=')) {
-                  parsedReferer = p.substring(8);
+                }
+                // Wrap CF-proxy-required streams in CF Worker URL upfront
+                String finalUrl = url;
+                if (useProxy) {
+                  const cfWorker = 'https://long-wind-ad98.avinashbiradar722.workers.dev/';
+                  finalUrl = '$cfWorker?url=${Uri.encodeComponent(url)}';
+                }
+                // Strip duplicate resolution suffixes like (360p) from language label
+                lang = lang.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
+
+                final Map<String, String> languageNames = {
+                  'hi': 'Hindi',
+                  'kn': 'Kannada',
+                  'te': 'Telugu',
+                  'ta': 'Tamil',
+                  'ml': 'Malayalam',
+                  'bn': 'Bengali',
+                  'pa': 'Punjabi',
+                  'mr': 'Marathi',
+                  'gu': 'Gujarati',
+                };
+                final String origLangCode = m.language.toLowerCase();
+                final String actualOrigLang = languageNames[origLangCode] ?? m.language;
+
+                final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
+                
+                // Correct incorrect provider labeling (e.g. labeling Tamil as English)
+                if (lang.startsWith('English') && origLangCode != 'en' && isMb) {
+                  lang = lang.replaceFirst('English', actualOrigLang);
+                }
+                if (isMb) {
+                  movieBoxStreams.add(MovieBoxStream(
+                    url: finalUrl,
+                    resolution: resVal,
+                    size: 'Direct Stream',
+                    language: lang,
+                    referer: parsedReferer,
+                    subjectId: '2embed',
+                    detailPath: '',
+                  ));
+                } else {
+                  twoEmbedStreams.add(MovieBoxStream(
+                    url: finalUrl,
+                    resolution: resVal,
+                    size: 'Fast Stream',
+                    language: lang,
+                    referer: parsedReferer,
+                    subjectId: '2embed',
+                    detailPath: '',
+                  ));
                 }
               }
-
-              final Map<String, String> languageNames = {
-                'hi': 'Hindi',
-                'kn': 'Kannada',
-                'te': 'Telugu',
-                'ta': 'Tamil',
-                'ml': 'Malayalam',
-                'bn': 'Bengali',
-                'pa': 'Punjabi',
-                'mr': 'Marathi',
-                'gu': 'Gujarati',
-              };
-              final String origLangCode = m.language.toLowerCase();
-              final String actualOrigLang = languageNames[origLangCode] ?? m.language;
-
-              final bool isMb = url.contains('hakunaymatata.com') || url.contains('aoneroom.com');
-              
-              // Correct incorrect provider labeling (e.g. labeling Tamil as English)
-              if (lang.startsWith('English') && origLangCode != 'en' && isMb) {
-                lang = lang.replaceFirst('English', actualOrigLang);
-              }
-              // Strip duplicate resolution suffixes like (360p) from language label
-              lang = lang.replaceAll(RegExp(r'\s*\(\d+p?\)'), '').trim();
-
-              if (isMb) {
-                movieBoxStreams.add(MovieBoxStream(
-                  url: url,
-                  resolution: resVal,
-                  size: 'Direct Stream',
-                  language: lang,
-                  referer: parsedReferer,
-                  subjectId: '2embed', // Marks it for proper proxy headers
-                  detailPath: '',
-                ));
-              } else {
-                twoEmbedStreams.add(MovieBoxStream(
-                  url: url,
-                  resolution: resVal,
-                  size: 'Fast Stream',
-                  language: lang,
-                  referer: parsedReferer,
-                  subjectId: '2embed',
-                  detailPath: '',
-                ));
-              }
+            } catch (innerErr) {
+              debugPrint('[MovieDetailScreen] Error parsing config item $cfg: $innerErr');
             }
           }
         }
@@ -1165,6 +1181,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     if (!mounted) return;
 
     debugPrint('[MovieDetail] Found: ${twoEmbedStreams.length} 2Embed, ${movieBoxStreams.length} MovieBox, ${archives.length} Archive, ${torrents.length} Torrent streams');
+
 
     if (torrents.isEmpty && archives.isEmpty && movieBoxStreams.isEmpty && twoEmbedStreams.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1214,7 +1231,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Direct Web Streaming (2Embed)',
+                              '2Embed / LookMovie Streams',
                               style: TextStyle(
                                 color: AppColors.accent,
                                 fontSize: 12,
@@ -1296,11 +1313,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               MaterialPageRoute(
                                 builder: (_) => PlayerScreen(
                                   movie: m,
+                                  imdbId: _detail?.imdbId,
                                   directUrl: url,
                                   referer: s.referer,
                                   resolution: s.resolution,
                                   subjectId: s.subjectId,
                                   detailPath: s.detailPath,
+                                  season: season,
+                                  episode: episode,
                                 ),
                               ),
                             );
@@ -1312,7 +1332,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         child: Text(
-                          'Direct Web Streaming (Recommended)',
+                          'MovieBox Streams',
                           style: TextStyle(
                             color: AppColors.accent,
                             fontSize: 12,
@@ -1384,11 +1404,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               MaterialPageRoute(
                                 builder: (_) => PlayerScreen(
                                   movie: m,
+                                  imdbId: _detail?.imdbId,
                                   directUrl: url,
                                   referer: s.referer,
                                   resolution: s.resolution,
                                   subjectId: s.subjectId,
                                   detailPath: s.detailPath,
+                                  season: season,
+                                  episode: episode,
                                 ),
                               ),
                             );

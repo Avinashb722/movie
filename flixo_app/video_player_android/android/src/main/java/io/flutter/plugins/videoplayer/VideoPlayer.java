@@ -168,14 +168,18 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
             }
           }
 
-          if (isMovieBox && !hasCustomReferer) {
-            resolvedHeaders.put("User-Agent", "okhttp/4.10.0");
-            if (urlString.contains("/download/") || urlString.contains("/bt/") || urlString.contains("/convert-")) {
+          if (isMovieBox) {
+            boolean isConvertOrDownload = urlString.contains("/convert-") || urlString.contains("/download/");
+            boolean isXwDomain = urlString.contains("xw.") || urlString.contains("bcdnxw") || urlString.contains("aoneroomxw");
+            if (isConvertOrDownload || isXwDomain) {
+              resolvedHeaders.put("User-Agent", "okhttp/4.10.0");
               resolvedHeaders.put("Referer", "https://fmoviesunblocked.net/");
-            } else {
-              resolvedHeaders.put("Referer", "https://h5.aoneroom.com/");
+              resolvedHeaders.put("Origin", "https://h5.aoneroom.com");
+            } else if (!hasCustomReferer) {
+              resolvedHeaders.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+              resolvedHeaders.remove("Referer");
+              resolvedHeaders.remove("Origin");
             }
-            resolvedHeaders.put("Origin", "https://h5.aoneroom.com");
             resolvedHeaders.put("Accept", "*/*");
           } else {
             if (!resolvedHeaders.containsKey("User-Agent")) {

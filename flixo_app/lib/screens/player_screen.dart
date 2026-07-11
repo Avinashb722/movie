@@ -542,7 +542,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     final bool isIp = RegExp(r'https?://\d+\.\d+\.\d+\.\d+').hasMatch(cleanUrl) || RegExp(r'^\d+\.\d+\.\d+\.\d+').hasMatch(cleanUrl);
-    final bool is2EmbedOrLookMovie = cleanUrl.contains('lookmovie') ||
+    final bool is2EmbedOrLookMovie = (cleanUrl.contains('lookmovie') ||
         cleanUrl.contains('korso420dim.com') ||
         cleanUrl.contains('cdn30091') ||
         cleanUrl.contains('cdn30092') ||
@@ -550,7 +550,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         cleanUrl.contains('laika422mon.com') ||
         cleanUrl.contains('vidnest.fun') ||
         currentSubjectId == '2embed' ||
-        isIp;
+        isIp) && !(cleanUrl.contains('hakunaymatata.com') || cleanUrl.contains('aoneroom.com'));
 
     if (is2EmbedOrLookMovie) {
       // For 2embed/LookMovie, never fallback to MovieBox referrer!
@@ -676,14 +676,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       // Set headers for direct playback
-      final bool isMovieBoxUrl = (cleanUrl.contains('hakunaymatata.com') ||
-          cleanUrl.contains('aoneroom.com')) && 
-          (cleanReferer == null || cleanReferer.contains('moviebox') || cleanReferer.contains('aoneroom') || cleanReferer.contains('movienest'));
+      final bool isMovieBoxUrl = cleanUrl.contains('hakunaymatata.com') ||
+          cleanUrl.contains('aoneroom.com');
 
       if (isMovieBoxUrl) {
-        playHeaders['Referer'] = 'https://www.movieboxpro.app/';
-        playHeaders['User-Agent'] = 'okhttp/4.10.0';
-        playHeaders['Origin'] = 'https://www.movieboxpro.app';
+        final bool isConvertOrDownload = cleanUrl.contains('/convert-') || cleanUrl.contains('/download/');
+        final bool isXwDomain = cleanUrl.contains('xw.') || cleanUrl.contains('bcdnxw') || cleanUrl.contains('aoneroomxw');
+        if (isConvertOrDownload || isXwDomain) {
+          playHeaders['Referer'] = 'https://fmoviesunblocked.net/';
+          playHeaders['Origin'] = 'https://h5.aoneroom.com';
+          playHeaders['User-Agent'] = 'okhttp/4.10.0';
+        } else {
+          playHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+        }
         playHeaders['Accept'] = '*/*';
         playHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         playHeaders['Range'] = 'bytes=0-';
@@ -719,10 +724,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playUrl = cleanUrl;
           debugPrint('[PlayerScreen] Web - Playing MP4 stream directly: $playUrl');
         } else if (is2Embed) {
-          // Route 2Embed HLS streams through the same Vercel proxy (ver-orcin-alpha.vercel.app) to avoid IP mismatch and rewrite relative paths
+          // Route 2Embed HLS streams through movienest.app proxy which has m3u8 rewriter for relative URLs
           final String ref = cleanUrl.contains('lookmovie') ? 'https://lookmovie2.skin/' : (cleanReferer ?? 'https://lookmovie2.skin/');
-          playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
-          debugPrint('[PlayerScreen] Web - Routing 2Embed HLS stream through Vercel Proxy: $playUrl');
+          playUrl = 'https://www.movienest.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
+          debugPrint('[PlayerScreen] Web - Routing 2Embed HLS stream through MovieNest Proxy: $playUrl');
         } else if (cleanUrl.contains('workers.dev')) {
           // Already proxied via Cloudflare Worker: play directly (no Vercel proxy wrapping)
           playUrl = cleanUrl;

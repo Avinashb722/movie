@@ -157,11 +157,18 @@ class LocalStreamingProxy {
       } else if (useVercel) {
         // Vercel proxy handles headers; local proxy sends clean request to Vercel
         clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-      } else if (isAoneroom && (reqReferer == null || reqReferer.contains('moviebox') || reqReferer.contains('aoneroom') || reqReferer.contains('movienest'))) {
-        _lastReferer = 'https://www.movieboxpro.app/';
-        clientReq.headers.set('Referer', _lastReferer);
-        clientReq.headers.set('Origin', 'https://www.movieboxpro.app');
-        clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36');
+      } else if (isAoneroom) {
+        final bool isConvertOrDownload = targetUrl.contains('/convert-') || targetUrl.contains('/download/');
+        final bool isXwDomain = targetUrl.contains('xw.') || targetUrl.contains('bcdnxw') || targetUrl.contains('aoneroomxw');
+        if (isConvertOrDownload || isXwDomain) {
+          _lastReferer = 'https://fmoviesunblocked.net/';
+          clientReq.headers.set('Referer', _lastReferer);
+          clientReq.headers.set('Origin', 'https://h5.aoneroom.com');
+          clientReq.headers.set('User-Agent', 'okhttp/4.10.0');
+        } else {
+          _lastReferer = '';
+          clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+        }
       } else {
         if (reqReferer != null && !targetUrl.contains('archive.org')) {
           _lastReferer = reqReferer;
@@ -217,6 +224,10 @@ class LocalStreamingProxy {
             lower != 'content-length' && 
             lower != 'connection' && 
             lower != 'accept-encoding') {
+          // Skip copying referer, origin, and user-agent for MovieBox streams to prevent overwriting our custom clean headers
+          if (isAoneroom && (lower == 'referer' || lower == 'origin' || lower == 'user-agent')) {
+            return;
+          }
           clientReq.headers.removeAll(name);
           for (final val in values) {
             clientReq.headers.add(name, val);
@@ -425,6 +436,7 @@ class LocalStreamingProxy {
       final bool isTikTok = targetUrl.contains('tiktokcdn.com');
       final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
       final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
+      final bool isBaseAoneroom = _lastBaseUrl.contains('hakunaymatata.com') || _lastBaseUrl.contains('aoneroom.com');
 
       // On Android and iOS, direct connection is preferred to ensure the client IP matches the signed IP in the URL.
       final bool useVercel = isLookMovie && 
@@ -458,11 +470,16 @@ class LocalStreamingProxy {
         clientReq.headers.set('Referer', 'https://lookmovie2.skin/');
         clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
       } else {
-        final bool isBaseAoneroom = _lastBaseUrl.contains('hakunaymatata.com') || _lastBaseUrl.contains('aoneroom.com');
         if (isBaseAoneroom) {
-          clientReq.headers.set('Referer', 'https://www.movieboxpro.app/');
-          clientReq.headers.set('Origin', 'https://www.movieboxpro.app');
-          clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/137 Mobile Safari/537.36');
+          final bool isConvertOrDownload = _lastBaseUrl.contains('/convert-') || _lastBaseUrl.contains('/download/');
+          final bool isXwDomain = _lastBaseUrl.contains('xw.') || _lastBaseUrl.contains('bcdnxw') || _lastBaseUrl.contains('aoneroomxw');
+          if (isConvertOrDownload || isXwDomain) {
+            clientReq.headers.set('Referer', 'https://fmoviesunblocked.net/');
+            clientReq.headers.set('Origin', 'https://h5.aoneroom.com');
+            clientReq.headers.set('User-Agent', 'okhttp/4.10.0');
+          } else {
+            clientReq.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+          }
         } else {
           // If a custom referer was captured in the main request, send it to HLS segments too!
           if (_lastReferer.isNotEmpty) {
@@ -512,6 +529,10 @@ class LocalStreamingProxy {
             lower != 'content-length' && 
             lower != 'connection' && 
             lower != 'accept-encoding') {
+          // Skip copying referer, origin, and user-agent for MovieBox streams to prevent overwriting our custom clean headers
+          if (isBaseAoneroom && (lower == 'referer' || lower == 'origin' || lower == 'user-agent')) {
+            return;
+          }
           clientReq.headers.removeAll(name);
           for (final val in values) {
             clientReq.headers.add(name, val);

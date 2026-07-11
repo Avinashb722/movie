@@ -45,8 +45,8 @@ class _WebVideoPlayerWidgetState extends State<WebVideoPlayerWidget> {
     String finalUrl = widget.url;
 
     // Extract original target URL if already wrapped in a proxy URL
-    // BUT keep the proxy wrapper for m3u8/HLS streams (movienest.app / ver-orcin-alpha.vercel.app rewrites relative URLs)
-    if (finalUrl.contains('api?url=') && !finalUrl.contains('movienest.app') && !finalUrl.contains('ver-orcin-alpha.vercel.app')) {
+    // BUT keep the proxy wrapper for m3u8/HLS streams (movienest.app rewrites relative URLs)
+    if (finalUrl.contains('api?url=') && !finalUrl.contains('movienest.app')) {
       try {
         final uri = Uri.parse(finalUrl);
         final target = uri.queryParameters['url'];

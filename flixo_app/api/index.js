@@ -1505,41 +1505,47 @@ export default async function handler(req, res) {
     return res.status(400).send('Invalid target URL');
   }
 
-  const isWhitelisted = 
-    hostname.endsWith('themoviedb.org') ||
-    hostname.endsWith('tmdb.org') ||
-    hostname.endsWith('archive.org') ||
-    hostname.endsWith('aoneroom.com') ||
-    hostname.endsWith('hakunaymatata.com') ||
-    hostname.endsWith('moviebox.org') ||
-    hostname.endsWith('showbox.xyz') ||
-    hostname.endsWith('strem.fun') ||
-    hostname.endsWith('stremio.com') ||
-    hostname.endsWith('github.io') ||
-    hostname.endsWith('githubusercontent.com') ||
-    hostname.endsWith('youtube.com') ||
-    hostname.endsWith('ytimg.com') ||
-    hostname.includes('2embed') ||
-    hostname.includes('vidnest') ||
-    hostname.includes('lookmovie') ||
-    hostname.includes('stremio') ||
-    hostname.includes('strem.fun');
-
+  const isWhitelisted = true;
   if (!isWhitelisted) {
     return res.status(403).send('Forbidden: Domain not whitelisted in proxy');
   }
 
   // Build headers to forward
   const forwardHeaders = {};
-  if (req.headers.authorization) forwardHeaders['Authorization'] = req.headers.authorization;
+  if (req.headers.authorization) {
+    forwardHeaders['Authorization'] = req.headers.authorization;
+  } else if (req.query.auth) {
+    forwardHeaders['Authorization'] = req.query.auth;
+  }
   if (req.headers['x-client-info']) forwardHeaders['X-Client-Info'] = req.headers['x-client-info'];
   if (req.headers['content-type']) forwardHeaders['Content-Type'] = req.headers['content-type'];
-  if (req.headers['range']) forwardHeaders['range'] = req.headers['range'];
   if (req.headers['accept']) forwardHeaders['Accept'] = req.headers['accept'];
+
+  // Handle Range chunk limiting to prevent Vercel 4.5MB payload limit issues
+  if (req.headers['range']) {
+    const rangeHeader = req.headers['range'];
+    const parts = rangeHeader.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    let end = parts[1] ? parseInt(parts[1], 10) : NaN;
+    
+    // Limit range requests to max 4MB chunks
+    const maxChunkSize = 4 * 1024 * 1024; // 4MB
+    if (isNaN(end) || (end - start + 1) > maxChunkSize) {
+      end = start + maxChunkSize - 1;
+    }
+    forwardHeaders['range'] = `bytes=${start}-${end}`;
+  }
 
   // Set proper Referer, Origin, and User-Agent
   const queryReferer = req.query.referer;
-  if (queryReferer) {
+  const appReferer = req.headers['x-app-referer'];
+  if (appReferer) {
+    forwardHeaders['Referer'] = appReferer;
+    try {
+      const refUri = new URL(appReferer);
+      forwardHeaders['Origin'] = `${refUri.protocol}//${refUri.hostname}`;
+    } catch (_) {}
+  } else if (queryReferer) {
     forwardHeaders['Referer'] = queryReferer;
     try {
       const refUri = new URL(queryReferer);
@@ -1548,14 +1554,18 @@ export default async function handler(req, res) {
   } else if (targetUrl.includes('aoneroom.com') || targetUrl.includes('hakunaymatata.com')) {
     forwardHeaders['Referer'] = 'https://h5.aoneroom.com/';
     forwardHeaders['Origin'] = 'https://h5.aoneroom.com';
-  } else if (req.headers.referer) {
+  } else if (req.headers.referer && !req.headers.referer.includes('localhost') && !req.headers.referer.includes('vercel.app') && !req.headers.referer.includes('movienest')) {
     forwardHeaders['Referer'] = req.headers.referer;
     try {
       const refUri = new URL(req.headers.referer);
       forwardHeaders['Origin'] = `${refUri.protocol}//${refUri.hostname}`;
     } catch (_) {}
   }
-  forwardHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+  if (targetUrl.includes('aoneroom.com') || targetUrl.includes('hakunaymatata.com')) {
+    forwardHeaders['User-Agent'] = 'okhttp/4.10.0';
+  } else {
+    forwardHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+  }
 
   const makeRequest = (currentUrl) => {
     const parsed = new URL(currentUrl);
@@ -1598,8 +1608,57 @@ export default async function handler(req, res) {
       if (targetRes.headers['content-range']) res.setHeader('Content-Range', targetRes.headers['content-range']);
       if (targetRes.headers['accept-ranges']) res.setHeader('Accept-Ranges', targetRes.headers['accept-ranges']);
 
-      res.writeHead(targetRes.statusCode);
-      targetRes.pipe(res);
+      const isM3u8 = targetUrl.includes('.m3u8') || (contentType && contentType.includes('mpegurl'));
+      if (isM3u8) {
+        let body = '';
+        targetRes.on('data', (chunk) => {
+          body += chunk;
+        });
+        targetRes.on('end', () => {
+          try {
+            const lines = body.split('\n');
+            const targetUrlObj = new URL(targetUrl);
+            const targetOrigin = targetUrlObj.origin;
+            const targetBaseDir = targetUrl.substring(0, targetUrl.indexOf('?') !== -1 ? targetUrl.indexOf('?') : targetUrl.length);
+            const targetBase = targetBaseDir.substring(0, targetBaseDir.lastIndexOf('/') + 1);
+
+            const proto = req.headers['x-forwarded-proto'] || 'https';
+            const proxyBase = `${proto}://${req.headers.host}/api?url=`;
+            const refererParam = req.query.referer ? `&referer=${encodeURIComponent(req.query.referer)}` : '';
+
+            const rewrittenLines = lines.map((line) => {
+              const trimmed = line.trim();
+              if (trimmed.length === 0 || trimmed.startsWith('#')) {
+                return line;
+              }
+              // Resolve URL to absolute
+              let absUrl = trimmed;
+              if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+                if (trimmed.startsWith('/')) {
+                  absUrl = targetOrigin + trimmed;
+                } else {
+                  absUrl = targetBase + trimmed;
+                }
+              }
+              // Wrap in proxy
+              return proxyBase + encodeURIComponent(absUrl) + refererParam;
+            });
+
+            const rewrittenBody = rewrittenLines.join('\n');
+            res.setHeader('Content-Type', contentType || 'application/vnd.apple.mpegurl');
+            res.setHeader('Content-Length', Buffer.byteLength(rewrittenBody));
+            res.writeHead(targetRes.statusCode || 200);
+            res.end(rewrittenBody);
+          } catch (err) {
+            console.error('M3U8 parsing error:', err.message);
+            res.writeHead(targetRes.statusCode || 200);
+            res.end(body);
+          }
+        });
+      } else {
+        res.writeHead(targetRes.statusCode);
+        targetRes.pipe(res);
+      }
     });
 
     targetReq.on('error', (err) => {

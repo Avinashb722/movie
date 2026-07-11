@@ -81,6 +81,42 @@ const server = http.createServer(async (req, res) => {
 
   const reqUrl = new URL(req.url, `http://localhost:${PORT}`);
 
+  if (reqUrl.pathname === '/warm-token') {
+    const targetUrl = 'https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search-suggest';
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        console.log(`[Proxy] Warming guest token locally (POST /subject/search-suggest)`);
+        const forwardHeaders = {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Client-Info': req.headers['x-client-info'] || '{"timezone":"Asia/Kolkata","device_id":"8cfa827bc129486c","os":"android","version":"3.1.2"}',
+          'User-Agent': 'MovieBox/3.1.2 (Android 13)',
+          'Referer': 'https://www.movieboxpro.app/',
+        };
+        const result = await directFetch(targetUrl, {
+          method: 'POST',
+          headers: forwardHeaders,
+          body: body || undefined,
+        });
+        if (result.headers['x-user']) {
+          res.setHeader('x-user', result.headers['x-user']);
+          console.log(`  Successfully obtained x-user token: ${result.headers['x-user'].substring(0, 30)}...`);
+        } else {
+          console.log(`  ⚠️ Warmed token response did not contain x-user header!`);
+        }
+        res.writeHead(result.status, { 'Content-Type': 'application/json' });
+        res.end(result.body);
+      } catch (e) {
+        console.error(`  ❌ Error warming token: ${e.message}`);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   if (reqUrl.pathname === '/proxy-tiktok') {
     const urlMatch = req.url.match(/[\?&]url=([^&]+)/);
     if (!urlMatch) {

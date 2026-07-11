@@ -11,3 +11,4 @@ class WebVideoPlayerWidget extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
+void registerPointerInterceptor() {}

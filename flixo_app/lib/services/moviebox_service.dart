@@ -71,7 +71,7 @@ class MovieBoxService {
     if (isMovieBoxApi && isMobile) {
       try {
         final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
-        final resp = await http.post(unblockUri, headers: headers, body: body).timeout(const Duration(seconds: 10));
+        final resp = await http.post(unblockUri, headers: _cleanWebHeaders(headers), body: body).timeout(const Duration(seconds: 10));
         if (resp.statusCode >= 200 && resp.statusCode < 300) {
           return resp;
         }
@@ -90,7 +90,7 @@ class MovieBoxService {
         } else if (headers.containsKey('referer')) {
           proxyHeaders['X-App-Referer'] = headers['referer']!;
         }
-        final resp = await http.post(localProxyUri, headers: proxyHeaders, body: body).timeout(const Duration(seconds: 10));
+        final resp = await http.post(localProxyUri, headers: _cleanWebHeaders(proxyHeaders), body: body).timeout(const Duration(seconds: 10));
         if (resp.statusCode >= 200 && resp.statusCode < 300) {
           return resp;
         }
@@ -117,7 +117,7 @@ class MovieBoxService {
 
     try {
       final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
-      final resp = await http.post(unblockUri, headers: headers, body: body).timeout(const Duration(seconds: 10));
+      final resp = await http.post(unblockUri, headers: _cleanWebHeaders(headers), body: body).timeout(const Duration(seconds: 10));
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         return resp;
       }
@@ -125,7 +125,7 @@ class MovieBoxService {
     } catch (e2) {
       debugPrint('[MovieBox] Vercel Proxy failed: $e2. Trying corsproxy.io...');
       final unblockUri2 = Uri.parse('https://corsproxy.io/?${Uri.encodeComponent(uri.toString())}');
-      return await http.post(unblockUri2, headers: headers, body: body).timeout(const Duration(seconds: 8));
+      return await http.post(unblockUri2, headers: _cleanWebHeaders(headers), body: body).timeout(const Duration(seconds: 8));
     }
   }
 
@@ -143,7 +143,7 @@ class MovieBoxService {
     if (isMovieBoxApi && isMobile) {
       try {
         final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
-        final resp = await http.get(unblockUri, headers: headers).timeout(const Duration(seconds: 10));
+        final resp = await http.get(unblockUri, headers: _cleanWebHeaders(headers)).timeout(const Duration(seconds: 10));
         if (resp.statusCode >= 200 && resp.statusCode < 300) {
           return resp;
         }
@@ -158,7 +158,7 @@ class MovieBoxService {
         try {
           final cfProxy = 'https://long-wind-ad98.avinashbiradar722.workers.dev/';
           final proxyUri = Uri.parse('$cfProxy?url=${Uri.encodeComponent(uri.toString())}');
-          final resp = await http.get(proxyUri, headers: headers).timeout(const Duration(seconds: 10));
+          final resp = await http.get(proxyUri, headers: _cleanWebHeaders(headers)).timeout(const Duration(seconds: 10));
           if (resp.statusCode >= 200 && resp.statusCode < 300) {
             return resp;
           }
@@ -166,21 +166,21 @@ class MovieBoxService {
           debugPrint('[MovieBox] Web CF proxy GET failed for Archive: $e');
         }
       } else if (!isMovieBoxStream) {
-        // Always route MovieBox API requests through corsproxy.io
+        // Always route MovieBox API requests through Vercel proxy (corsproxy.io strips x-user header)
         try {
-          final localProxyUri = Uri.parse('https://corsproxy.io/?url=${Uri.encodeComponent(uri.toString())}');
+          final localProxyUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
           final proxyHeaders = Map<String, String>.from(headers);
           if (headers.containsKey('Referer')) {
             proxyHeaders['X-App-Referer'] = headers['Referer']!;
           } else if (headers.containsKey('referer')) {
             proxyHeaders['X-App-Referer'] = headers['referer']!;
           }
-          final resp = await http.get(localProxyUri, headers: proxyHeaders).timeout(const Duration(seconds: 10));
+          final resp = await http.get(localProxyUri, headers: _cleanWebHeaders(proxyHeaders)).timeout(const Duration(seconds: 10));
           if (resp.statusCode >= 200 && resp.statusCode < 300) {
             return resp;
           }
         } catch (e) {
-          debugPrint('[MovieBox] Web Local proxy GET failed for MovieBox: $e');
+          debugPrint('[MovieBox] Web Vercel proxy GET failed for MovieBox: $e');
         }
       }
     }
@@ -203,7 +203,7 @@ class MovieBoxService {
 
     try {
       final unblockUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
-      final resp = await http.get(unblockUri, headers: headers).timeout(const Duration(seconds: 10));
+      final resp = await http.get(unblockUri, headers: _cleanWebHeaders(headers)).timeout(const Duration(seconds: 10));
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         return resp;
       }
@@ -211,7 +211,7 @@ class MovieBoxService {
     } catch (e2) {
       debugPrint('[MovieBox] Vercel Proxy GET failed: $e2. Trying corsproxy.io...');
       final unblockUri2 = Uri.parse('https://corsproxy.io/?${Uri.encodeComponent(uri.toString())}');
-      return await http.get(unblockUri2, headers: headers).timeout(const Duration(seconds: 8));
+      return await http.get(unblockUri2, headers: _cleanWebHeaders(headers)).timeout(const Duration(seconds: 8));
     }
   }
 
@@ -225,12 +225,31 @@ class MovieBoxService {
       final headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': 'MovieBox/3.1.2 (Android 13)',
-        'Referer': _referer,
+        if (!kIsWeb) 'User-Agent': 'MovieBox/3.1.2 (Android 13)',
+        if (!kIsWeb) 'Referer': _referer,
         'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId","os":"android","version":"3.1.2"}',
       };
 
       http.Response? response;
+
+      // On Web, warm the guest token via the Vercel proxy to get a mobile guest token (atp=1/2).
+      if (kIsWeb) {
+        try {
+          final webProxyUri = Uri.parse('https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(uri.toString())}');
+          final webHeaders = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId","os":"android","version":"3.1.2"}',
+          };
+          final resp = await http.post(webProxyUri, headers: webHeaders, body: body).timeout(const Duration(seconds: 6));
+          if (resp.statusCode == 200) {
+            response = resp;
+            debugPrint('[MovieBox] Web - Successfully warmed guest token via Vercel Proxy');
+          }
+        } catch (e) {
+          debugPrint('[MovieBox] Web - Vercel proxy warming failed: $e');
+        }
+      }
 
       // On Windows, try curl.exe first — it has a different TLS fingerprint (Schannel/OpenSSL)
       // that the MovieBox server may classify as a mobile client (atp:1/2) instead of web (atp:3).
@@ -398,7 +417,7 @@ class MovieBoxService {
           } catch (_) {}
         }
 
-        if (_token != null && !_isTokenOld(_token!) && (!Platform.isAndroid || !isWebToken)) {
+        if (_token != null && !_isTokenOld(_token!) && (kIsWeb || !Platform.isAndroid || !isWebToken) && (!kIsWeb || !isWebToken)) {
           log('Using cached guest token: ${_token!.substring(0, 10)}...');
         } else {
           log('Guest token missing, expired, or web-level on Android. Warming fresh guest token.');
@@ -433,8 +452,8 @@ class MovieBoxService {
           final searchHeaders = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'User-Agent': _userAgent,
-            'Referer': _referer,
+            if (!kIsWeb) 'User-Agent': _userAgent,
+            if (!kIsWeb) 'Referer': _referer,
             'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
             'Authorization': 'Bearer $_token',
           };
@@ -528,8 +547,8 @@ class MovieBoxService {
             final playHeaders = {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'User-Agent': _userAgent,
-              'Referer': _referer,
+              if (!kIsWeb) 'User-Agent': _userAgent,
+              if (!kIsWeb) 'Referer': _referer,
               'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
               'Authorization': 'Bearer $_token',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -579,8 +598,8 @@ class MovieBoxService {
             final dlHeaders = {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'User-Agent': _userAgent,
-              'Referer': _referer,
+              if (!kIsWeb) 'User-Agent': _userAgent,
+              if (!kIsWeb) 'Referer': _referer,
               'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
               'Authorization': 'Bearer $_token',
             };
@@ -672,8 +691,8 @@ class MovieBoxService {
       final headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': _userAgent,
-        'Referer': _referer,
+        if (!kIsWeb) 'User-Agent': _userAgent,
+        if (!kIsWeb) 'Referer': _referer,
         'X-Client-Info': '{"timezone":"Asia/Kolkata","device_id":"$deviceId"}',
         'Authorization': 'Bearer $_token',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -735,5 +754,25 @@ class MovieBoxService {
       debugPrint('[MovieBox] refreshUrl error: $e');
     }
     return stream;
+  }
+
+  static Map<String, String> _cleanWebHeaders(Map<String, String> headers) {
+    if (!kIsWeb) return headers;
+    final Map<String, String> clean = Map<String, String>.from(headers);
+    clean.remove('user-agent');
+    clean.remove('User-Agent');
+    clean.remove('referer');
+    clean.remove('Referer');
+    clean.remove('origin');
+    clean.remove('Origin');
+    clean.remove('host');
+    clean.remove('Host');
+    clean.remove('connection');
+    clean.remove('Connection');
+    clean.remove('cache-control');
+    clean.remove('Cache-Control');
+    clean.remove('pragma');
+    clean.remove('Pragma');
+    return clean;
   }
 }
