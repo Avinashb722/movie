@@ -719,10 +719,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playUrl = cleanUrl;
           debugPrint('[PlayerScreen] Web - Playing MP4 stream directly: $playUrl');
         } else if (is2Embed) {
-          // Route 2Embed HLS streams through movienest.app proxy which has m3u8 rewriter for relative URLs
+          // Route 2Embed HLS streams through the same Vercel proxy (ver-orcin-alpha.vercel.app) to avoid IP mismatch and rewrite relative paths
           final String ref = cleanUrl.contains('lookmovie') ? 'https://lookmovie2.skin/' : (cleanReferer ?? 'https://lookmovie2.skin/');
-          playUrl = 'https://www.movienest.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
-          debugPrint('[PlayerScreen] Web - Routing 2Embed HLS stream through MovieNest Proxy: $playUrl');
+          playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(cleanUrl)}&referer=${Uri.encodeComponent(ref)}';
+          debugPrint('[PlayerScreen] Web - Routing 2Embed HLS stream through Vercel Proxy: $playUrl');
         } else if (cleanUrl.contains('workers.dev')) {
           // Already proxied via Cloudflare Worker: play directly (no Vercel proxy wrapping)
           playUrl = cleanUrl;
