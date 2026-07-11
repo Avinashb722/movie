@@ -19,7 +19,7 @@ import '../services/history_service.dart';
 import '../services/moviebox_service.dart';
 import '../services/windows_torrent_service.dart';
 import '../widgets/web_video_player_stub.dart'
-    if (dart.library.html) '../widgets/web_video_player_web.dart';
+    if (dart.library.html) '../widgets/web_video_player_web.dart' hide HtmlElementView;
 import 'stream_screen.dart';
 import '../services/local_streaming_proxy.dart';
 import '../services/archive_service.dart';
@@ -549,6 +549,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         cleanUrl.contains('tiktokcdn.com') ||
         cleanUrl.contains('laika422mon.com') ||
         cleanUrl.contains('vidnest.fun') ||
+        cleanUrl.contains('i-arch') ||
+        cleanUrl.contains('stream2') ||
         currentSubjectId == '2embed' ||
         isIp) && !(cleanUrl.contains('hakunaymatata.com') || cleanUrl.contains('aoneroom.com'));
 
@@ -710,7 +712,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (kIsWeb) {
         final bool isMovieBox = cleanUrl.contains('hakunaymatata.com') || cleanUrl.contains('aoneroom.com');
         final bool isArchive = cleanUrl.contains('archive.org');
-        final bool is2Embed = cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('stream2') || cleanUrl.contains('2embed.cc') || cleanUrl.contains('2embed.skin') || cleanUrl.contains('1x2.space') || widget.subjectId == '2embed';
+        final bool is2Embed = cleanUrl.contains('lookmovie') || cleanUrl.contains('korso420dim.com') || cleanUrl.contains('stream2') || cleanUrl.contains('i-arch') || cleanUrl.contains('2embed.cc') || cleanUrl.contains('2embed.skin') || cleanUrl.contains('1x2.space') || widget.subjectId == '2embed';
         final bool isMp4 = cleanUrl.toLowerCase().contains('.mp4');
         
         if (isMovieBox) {

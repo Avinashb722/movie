@@ -1,6 +1,6 @@
 [Setup]
 AppName=MovieNest
-AppVersion=1.1.0
+AppVersion=1.1.2
 DefaultDirName={localappdata}\MovieNest
 DefaultGroupName=MovieNest
 UninstallDisplayIcon={app}\movienest.exe

@@ -1084,7 +1084,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               if (url.isNotEmpty && !existingUrls.contains(url)) {
                 existingUrls.add(url);
                 String lang = 'Multi/English';
-                int resVal = 720;
+                int resVal = 0;
                 String parsedReferer = 'https://new.vidnest.fun/';
                 bool useProxy = false;
                 for (int i = 1; i < parts.length; i++) {
@@ -1252,10 +1252,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                       ...twoEmbedStreams.map((s) {
                         final langSuffix = s.language.isNotEmpty ? ' [${s.language}]' : '';
+                        final resLabel = s.resolution > 0 ? '${s.resolution}p' : '';
+                        final titleText = '2Embed $resLabel$langSuffix'.replaceAll(RegExp(r'\s+'), ' ').trim();
                         return ListTile(
                           leading: const Icon(Icons.play_circle_filled, color: AppColors.accent),
                           title: Text(
-                            '2Embed ${s.resolution}p$langSuffix',
+                            titleText,
                             style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                           ),
                           subtitle: const Text(

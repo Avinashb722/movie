@@ -1577,9 +1577,13 @@ export default async function handler(req, res) {
       port: parsed.port || (isHttps ? 443 : 80),
       path: parsed.pathname + parsed.search,
       method: req.method,
-      headers: forwardHeaders,
+      headers: { ...forwardHeaders },
       rejectUnauthorized: false,
     };
+
+    // Clean Host header so the HTTP client updates it automatically to match the redirect destination hostname.
+    delete reqOptions.headers['host'];
+    delete reqOptions.headers['Host'];
 
     const targetReq = clientLib.request(reqOptions, (targetRes) => {
       // Handle Redirects
