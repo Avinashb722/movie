@@ -264,7 +264,29 @@ class TwoEmbedService {
             if (_isValidStreamUrl(url)) {
               final appended = _appendReferer(url, s['headers'] as Map?);
               final res = s['resolution'];
-              final label = res != null ? 'Multi ($res)' : 'Multi';
+              // Detect language from URL slug (e.g. "blast-hindi-...", "kgf-2-tamil-...")
+              String detectedLang = 'Multi';
+              final lowerUrl = url.toLowerCase();
+              if (lowerUrl.contains('-hindi-') || lowerUrl.contains('/hindi/') || lowerUrl.contains('_hindi_')) {
+                detectedLang = 'Hindi';
+              } else if (lowerUrl.contains('-tamil-') || lowerUrl.contains('/tamil/') || lowerUrl.contains('_tamil_')) {
+                detectedLang = 'Tamil';
+              } else if (lowerUrl.contains('-telugu-') || lowerUrl.contains('/telugu/') || lowerUrl.contains('_telugu_')) {
+                detectedLang = 'Telugu';
+              } else if (lowerUrl.contains('-kannada-') || lowerUrl.contains('/kannada/') || lowerUrl.contains('_kannada_')) {
+                detectedLang = 'Kannada';
+              } else if (lowerUrl.contains('-malayalam-') || lowerUrl.contains('/malayalam/') || lowerUrl.contains('_malayalam_')) {
+                detectedLang = 'Malayalam';
+              } else if (lowerUrl.contains('-bengali-') || lowerUrl.contains('/bengali/') || lowerUrl.contains('_bengali_')) {
+                detectedLang = 'Bengali';
+              } else if (lowerUrl.contains('-english-') || lowerUrl.contains('/english/') || lowerUrl.contains('_english_')) {
+                detectedLang = 'English';
+              } else if (lowerUrl.contains('-marathi-') || lowerUrl.contains('/marathi/') || lowerUrl.contains('_marathi_')) {
+                detectedLang = 'Marathi';
+              } else if (lowerUrl.contains('-punjabi-') || lowerUrl.contains('/punjabi/') || lowerUrl.contains('_punjabi_')) {
+                detectedLang = 'Punjabi';
+              }
+              final label = res != null ? '$detectedLang ($res)' : detectedLang;
               parts.add('$appended|language=$label');
             }
           }
