@@ -661,7 +661,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final refParam = ref.isNotEmpty ? '&referer=${Uri.encodeComponent(ref)}' : '';
         
         if (isMovieBoxCdn) {
-           playUrl = 'https://ver-orcin-alpha.vercel.app/api?url=${Uri.encodeComponent(targetUrl)}&referer=${Uri.encodeComponent(ref)}';
+           playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(targetUrl)}$refParam$authParam';
         } else {
            playUrl = 'http://127.0.0.1:$proxyPort/play?url=${Uri.encodeComponent(targetUrl)}$refParam$authParam';
         }

@@ -129,6 +129,12 @@ class TwoEmbedService {
       return url;
     }
 
+    final hls3Match = RegExp(r'"hls3"\s*:\s*"([^"]+)"').firstMatch(unpacked);
+    if (hls3Match != null) {
+      _log('[TwoEmbedService] Swish → HLS3 stream: ${hls3Match.group(1)!}');
+      return hls3Match.group(1)!;
+    }
+
     final hls2Match = RegExp(r'"hls2"\s*:\s*"([^"]+)"').firstMatch(unpacked);
     if (hls2Match != null) {
       _log('[TwoEmbedService] Swish → HLS2 stream: ${hls2Match.group(1)!}');

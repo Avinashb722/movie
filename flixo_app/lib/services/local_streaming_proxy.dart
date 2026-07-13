@@ -112,7 +112,7 @@ class LocalStreamingProxy {
     final bool isTikTok = targetUrl.contains('tiktokcdn.com');
     final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
     final bool isAoneroom = targetUrl.contains('aoneroom.com') || targetUrl.contains('hakunaymatata.com');
-    final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
+    final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('uqloads.xyz') || targetUrl.contains('.space') || targetUrl.contains('.cyou') || targetUrl.contains('professionalimage') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
     final bool useProxyParam = queryStr.contains('use_proxy=true');
     final bool useVercel = useProxyParam || (isLookMovie && 
                            !targetUrl.contains('ver-orcin-alpha.vercel.app') && 
@@ -425,6 +425,11 @@ class LocalStreamingProxy {
       }
       
       final relativePathSegments = request.uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      if (baseUri.pathSegments.isNotEmpty &&
+          relativePathSegments.isNotEmpty &&
+          relativePathSegments.first == baseUri.pathSegments.first) {
+        basePathSegments.clear();
+      }
       basePathSegments.addAll(relativePathSegments);
       
       final targetUri = baseUri.replace(
@@ -435,7 +440,7 @@ class LocalStreamingProxy {
       final targetUrl = targetUri.toString();
       final bool isTikTok = targetUrl.contains('tiktokcdn.com');
       final bool isTikTokSegment = isTikTok && targetUrl.contains('.image');
-      final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
+      final bool isLookMovie = targetUrl.contains('premilkyway.com') || targetUrl.contains('uqloads.com') || targetUrl.contains('uqloads.xyz') || targetUrl.contains('.space') || targetUrl.contains('.cyou') || targetUrl.contains('professionalimage') || targetUrl.contains('lookmovie') || targetUrl.contains('korso420dim.com');
       final bool isBaseAoneroom = _lastBaseUrl.contains('hakunaymatata.com') || _lastBaseUrl.contains('aoneroom.com');
 
       // On Android and iOS, direct connection is preferred to ensure the client IP matches the signed IP in the URL.
